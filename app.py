@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import re
 import json
 import os
 import random
@@ -116,47 +117,46 @@ def save_history(data):
 
 # ==========================================
 # 2026-27シーズン 全38節公式日程マスター
-# （Match IDをここに直接保持します）
 # ==========================================
 SCHEDULE_2026_27 = [
-    {"round": 1, "opp": "コヴェントリー・シティ", "ha": "H", "match_id": "", "day": 22},
-    {"round": 2, "opp": "アストン・ヴィラ", "ha": "A", "match_id": "", "day": 1},
-    {"round": 3, "opp": "チェルシー", "ha": "H", "match_id": "", "day": 7},
-    {"round": 4, "opp": "サンダーランド", "ha": "A", "match_id": "", "day": 13},
-    {"round": 5, "opp": "ブライトン", "ha": "A", "match_id": "", "day": 19},
-    {"round": 6, "opp": "リーズ・ユナイテッド", "ha": "H", "match_id": "", "day": 10},
-    {"round": 7, "opp": "ノッティンガム・フォレスト", "ha": "A", "match_id": "", "day": 19},
-    {"round": 8, "opp": "エヴァートン", "ha": "H", "match_id": "", "day": 24},
-    {"round": 9, "opp": "リヴァプール", "ha": "A", "match_id": "", "day": 2},
-    {"round": 10, "opp": "ハル・シティ", "ha": "H", "match_id": "", "day": 8},
-    {"round": 11, "opp": "ニューカッスル・ユナイテッド", "ha": "A", "match_id": "", "day": 22},
-    {"round": 12, "opp": "マンチェスター・シティ", "ha": "H", "match_id": "", "day": 29},
-    {"round": 13, "opp": "ブレントフォード", "ha": "A", "match_id": "", "day": 5},
-    {"round": 14, "opp": "トッテナム・ホットスパー", "ha": "A", "match_id": "", "day": 12},
-    {"round": 15, "opp": "ボーンマス", "ha": "H", "match_id": "", "day": 19},
-    {"round": 16, "opp": "マンチェスター・ユナイテッド", "ha": "H", "match_id": "", "day": 26},
-    {"round": 17, "opp": "クリスタル・パレス", "ha": "A", "match_id": "", "day": 29},
-    {"round": 18, "opp": "フラム", "ha": "A", "match_id": "", "day": 2},
-    {"round": 19, "opp": "イプスウィッチ・タウン", "ha": "H", "match_id": "", "day": 16},
-    {"round": 20, "opp": "ブレントフォード", "ha": "H", "match_id": "", "day": 23},
-    {"round": 21, "opp": "ハル・シティ", "ha": "A", "match_id": "", "day": 30},
-    {"round": 22, "opp": "ニューカッスル・ユナイテッド", "ha": "H", "match_id": "", "day": 6},
-    {"round": 23, "opp": "マンチェスター・シティ", "ha": "A", "match_id": "", "day": 13},
-    {"round": 24, "opp": "リヴァプール", "ha": "H", "match_id": "", "day": 20},
-    {"round": 25, "opp": "イプスウィッチ・タウン", "ha": "A", "match_id": "", "day": 27},
-    {"round": 26, "opp": "フラム", "ha": "H", "match_id": "", "day": 6},
-    {"round": 27, "opp": "マンチェスター・ユナイテッド", "ha": "A", "match_id": "", "day": 13},
-    {"round": 28, "opp": "クリスタル・パレス", "ha": "H", "match_id": "", "day": 3},
-    {"round": 29, "opp": "チェルシー", "ha": "A", "match_id": "", "day": 10},
-    {"round": 30, "opp": "サンダーランド", "ha": "H", "match_id": "", "day": 17},
-    {"round": 31, "opp": "コヴェントリー・シティ", "ha": "A", "match_id": "", "day": 24},
-    {"round": 32, "opp": "アストン・ヴィラ", "ha": "H", "match_id": "", "day": 1},
-    {"round": 33, "opp": "ボーンマス", "ha": "A", "match_id": "", "day": 8},
-    {"round": 34, "opp": "トッテナム・ホットスパー", "ha": "H", "match_id": "", "day": 15},
-    {"round": 35, "opp": "リーズ・ユナイテッド", "ha": "A", "match_id": "", "day": 19},
-    {"round": 36, "opp": "ノッティンガム・フォレスト", "ha": "H", "match_id": "", "day": 23},
-    {"round": 37, "opp": "エヴァートン", "ha": "A", "match_id": "", "day": 26},
-    {"round": 38, "opp": "ブライトン", "ha": "H", "match_id": "", "day": 30}
+    {"round": 1, "opp": "コヴェントリー・シティ", "ha": "H", "day": 22},
+    {"round": 2, "opp": "アストン・ヴィラ", "ha": "A", "day": 1},
+    {"round": 3, "opp": "チェルシー", "ha": "H", "day": 7},
+    {"round": 4, "opp": "サンダーランド", "ha": "A", "day": 13},
+    {"round": 5, "opp": "ブライトン", "ha": "A", "day": 19},
+    {"round": 6, "opp": "リーズ・ユナイテッド", "ha": "H", "day": 10},
+    {"round": 7, "opp": "ノッティンガム・フォレスト", "ha": "A", "day": 19},
+    {"round": 8, "opp": "エヴァートン", "ha": "H", "day": 24},
+    {"round": 9, "opp": "リヴァプール", "ha": "A", "day": 2},
+    {"round": 10, "opp": "ハル・シティ", "ha": "H", "day": 8},
+    {"round": 11, "opp": "ニューカッスル・ユナイテッド", "ha": "A", "day": 22},
+    {"round": 12, "opp": "マンチェスター・シティ", "ha": "H", "day": 29},
+    {"round": 13, "opp": "ブレントフォード", "ha": "A", "day": 5},
+    {"round": 14, "opp": "トッテナム・ホットスパー", "ha": "A", "day": 12},
+    {"round": 15, "opp": "ボーンマス", "ha": "H", "day": 19},
+    {"round": 16, "opp": "マンチェスター・ユナイテッド", "ha": "H", "day": 26},
+    {"round": 17, "opp": "クリスタル・パレス", "ha": "A", "day": 29},
+    {"round": 18, "opp": "フラム", "ha": "A", "day": 2},
+    {"round": 19, "opp": "イプスウィッチ・タウン", "ha": "H", "day": 16},
+    {"round": 20, "opp": "ブレントフォード", "ha": "H", "day": 23},
+    {"round": 21, "opp": "ハル・シティ", "ha": "A", "day": 30},
+    {"round": 22, "opp": "ニューカッスル・ユナイテッド", "ha": "H", "day": 6},
+    {"round": 23, "opp": "マンチェスター・シティ", "ha": "A", "day": 13},
+    {"round": 24, "opp": "リヴァプール", "ha": "H", "day": 20},
+    {"round": 25, "opp": "イプスウィッチ・タウン", "ha": "A", "day": 27},
+    {"round": 26, "opp": "フラム", "ha": "H", "day": 6},
+    {"round": 27, "opp": "マンチェスター・ユナイテッド", "ha": "A", "day": 13},
+    {"round": 28, "opp": "クリスタル・パレス", "ha": "H", "day": 3},
+    {"round": 29, "opp": "チェルシー", "ha": "A", "day": 10},
+    {"round": 30, "opp": "サンダーランド", "ha": "H", "day": 17},
+    {"round": 31, "opp": "コヴェントリー・シティ", "ha": "A", "day": 24},
+    {"round": 32, "opp": "アストン・ヴィラ", "ha": "H", "day": 1},
+    {"round": 33, "opp": "ボーンマス", "ha": "A", "day": 8},
+    {"round": 34, "opp": "トッテナム・ホットスパー", "ha": "H", "day": 15},
+    {"round": 35, "opp": "リーズ・ユナイテッド", "ha": "A", "day": 19},
+    {"round": 36, "opp": "ノッティンガム・フォレスト", "ha": "H", "day": 23},
+    {"round": 37, "opp": "エヴァートン", "ha": "A", "day": 26},
+    {"round": 38, "opp": "ブライトン", "ha": "H", "day": 30}
 ]
 
 ARSENAL_SQUAD_NUMBERS = {
@@ -168,21 +168,25 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# Match ID指定型・裏側ダイレクトスタッツ取得
+# スマホ対応 Match ID 抽出パーサー
 # ==========================================
-@st.cache_data(ttl=300)
-def fetch_match_details_direct(match_id, is_home):
-    """全体検索を行わず、Match IDを直接指定して詳細スタッツのみを取得"""
-    if not match_id:
-        return None, "Match ID未登録"
+def extract_match_id(text):
+    """PC・スマホWeb・アプリ共有テキストから6〜10桁のMatch IDを自動抽出"""
+    if not text:
+        return ""
+    # 共有テキストやURL全体から6〜10桁の数字を抽出
+    match = re.search(r'(\d{6,10})', str(text))
+    return match.group(1) if match else ""
 
+def fetch_match_details_by_id(match_id, is_home):
+    """Match IDを指定してFotMobからスタッツを取得"""
     url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Referer": "https://www.fotmob.com/"
     }
     try:
-        res = requests.get(url, headers=headers, timeout=5)
+        res = requests.get(url, headers=headers, timeout=6)
         if res.status_code != 200:
             return None, f"FotMob通信エラー (HTTP {res.status_code})"
 
@@ -190,7 +194,7 @@ def fetch_match_details_direct(match_id, is_home):
         header = m_data.get("header", {})
         teams = header.get("teams", [])
         if len(teams) < 2:
-            return None, "チーム情報取得失敗"
+            return None, "チーム情報を取得できませんでした"
 
         h_sc = teams[0].get("score")
         a_sc = teams[1].get("score")
@@ -259,6 +263,7 @@ def fetch_match_details_direct(match_id, is_home):
                             shots = int(s_str)
 
         return {
+            "match_id": match_id,
             "h_score": int(h_sc) if h_sc is not None else 0,
             "a_score": int(a_sc) if a_sc is not None else 0,
             "is_finished": is_finished,
@@ -269,7 +274,7 @@ def fetch_match_details_direct(match_id, is_home):
             "possession": possession
         }, None
     except Exception as e:
-        return None, f"取得例外エラー: {str(e)[:30]}"
+        return None, f"取得エラー: {str(e)[:30]}"
 
 # ==========================================
 # ロト7 採番ロジック
@@ -387,13 +392,13 @@ with tab1:
     opp_name = m["opp"]
     ha = m["ha"]
     is_home = (ha == "H")
-    match_id = m.get("match_id", "")
 
     state_key = f"match_data_{round_num}"
     if state_key not in st.session_state or not isinstance(st.session_state[state_key], dict):
         st.session_state[state_key] = {}
 
     cur = st.session_state[state_key]
+    cur.setdefault("match_id", "")
     cur.setdefault("h_score", 0)
     cur.setdefault("a_score", 0)
     cur.setdefault("is_finished", False)
@@ -404,35 +409,47 @@ with tab1:
     cur.setdefault("shots", 15)
     cur.setdefault("poss", 55)
     cur.setdefault("day", m.get("day", 1))
-    cur.setdefault("auto_synced", False)
-    cur.setdefault("sync_status", "")
 
-    # Match IDが設定されている場合のみ、裏側で直接取得を実行
-    if match_id and not cur.get("auto_synced", False):
-        fetched, err = fetch_match_details_direct(match_id, is_home)
-        if fetched:
-            cur["h_score"] = fetched["h_score"]
-            cur["a_score"] = fetched["a_score"]
-            cur["is_finished"] = fetched["is_finished"]
-            cur["scorers"] = fetched["scorers"]
-            cur["assist"] = fetched["assist"]
-            cur["goal_time"] = fetched["goal_time"]
-            cur["shots"] = fetched["shots"]
-            cur["poss"] = fetched["possession"]
-            cur["auto_synced"] = True
-            cur["sync_status"] = "🟢 FotMobからスタッツを自動取得しました"
+    # スマホ対応 FotMobスタッツ自動同期バー
+    st.markdown("**⚡ FotMobスタッツ連携（スマホURL・アプリ共有対応）**")
+    col_u1, col_u2 = st.columns([3, 1])
+    with col_u1:
+        user_url_input = st.text_input(
+            "FotMob URLまたは共有テキスト",
+            value="",
+            placeholder="FotMobのURL、アプリ共有文、またはIDを貼り付け",
+            key=f"url_in_{round_num}",
+            label_visibility="collapsed"
+        )
+    with col_u2:
+        sync_clicked = st.button("🔄 自動取得", use_container_width=True)
+
+    if sync_clicked:
+        target_mid = extract_match_id(user_url_input)
+        if target_mid:
+            with st.spinner("FotMobからスタッツを取得中..."):
+                fetched, err = fetch_match_details_by_id(target_mid, is_home)
+                if fetched:
+                    cur["match_id"] = fetched["match_id"]
+                    cur["h_score"] = fetched["h_score"]
+                    cur["a_score"] = fetched["a_score"]
+                    cur["is_finished"] = fetched["is_finished"]
+                    cur["scorers"] = fetched["scorers"]
+                    cur["assist"] = fetched["assist"]
+                    cur["goal_time"] = fetched["goal_time"]
+                    cur["shots"] = fetched["shots"]
+                    cur["poss"] = fetched["possession"]
+                    st.success(f"スコア {fetched['h_score']}-{fetched['a_score']} と詳細スタッツを自動反映しました！")
+                    st.rerun()
+                else:
+                    st.error(err)
         else:
-            cur["sync_status"] = f"ℹ️ 連携ステータス: {err}"
-    elif not match_id:
-        cur["sync_status"] = "ℹ️ Match ID未設定（キックオフ前／手動調整モード）"
-
-    if cur.get("sync_status"):
-        st.caption(cur["sync_status"])
+            st.warning("FotMobのURL、アプリの共有リンク、またはMatch IDを入力してください。")
 
     h_team = "アーセナルFC" if is_home else opp_name
     a_team = opp_name if is_home else "アーセナルFC"
 
-    # 手動調整フォーム
+    # 手動調整アコーディオン
     with st.expander("📝 スコア & スタッツ詳細（手動調整・OG補正）", expanded=False):
         col_m1, col_m2 = st.columns(2)
         with col_m1:
@@ -487,8 +504,8 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-    if match_id:
-        st.link_button("🔗 FotMobでこの試合の詳細ページを開く", f"https://www.fotmob.com/matches/{match_id}", use_container_width=True)
+    if cur.get("match_id"):
+        st.link_button("🔗 FotMobでこの試合の詳細ページを開く", f"https://www.fotmob.com/matches/{cur['match_id']}", use_container_width=True)
 
     t2_key = f"t2_{round_num}"
     if t2_key not in st.session_state:
@@ -551,7 +568,7 @@ with tab1:
         if has_result:
             st.info("引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
         else:
-            st.info("キックオフ前です。試合終了後にMatch IDが登録されるか、上のアコーディオンから手動入力できます。")
+            st.info("キックオフ前です。試合終了後にFotMobのURL/共有文を貼り付けて自動取得するか、手動入力してください。")
 
 # ==========================================
 # TAB 2: シーズン収支管理
