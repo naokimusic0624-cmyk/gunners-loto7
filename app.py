@@ -1,10 +1,9 @@
 import streamlit as st
 import requests
+import re
 import json
 import os
 import random
-import pandas as pd
-from datetime import datetime
 
 # ==========================================
 # ページ基本設定 & カスタムCSS
@@ -18,14 +17,11 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 全体ダークテーマ & アーセナルカラー */
     .stApp {
         background-color: #0B0F19;
         color: #F8FAFC;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    
-    /* ヘッダー */
     .arsenal-header {
         background: linear-gradient(135deg, #DB0007 0%, #7F0004 100%);
         padding: 12px 18px;
@@ -39,8 +35,6 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(219, 0, 7, 0.35);
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    /* マッチカード */
     .match-card {
         background-color: #1E293B;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -49,8 +43,6 @@ st.markdown("""
         margin-bottom: 12px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.4);
     }
-    
-    /* ロトボールUI */
     .ball-container {
         display: flex;
         justify-content: space-between;
@@ -74,8 +66,6 @@ st.markdown("""
         background: radial-gradient(circle at 35% 35%, #FDE68A, #D97706);
         color: #451A03;
     }
-    
-    /* 判定バッジ */
     .badge-win {
         background-color: rgba(219, 0, 7, 0.2);
         border: 1px solid #DB0007;
@@ -88,17 +78,10 @@ st.markdown("""
         justify-content: space-between;
         margin-top: 10px;
     }
-
-    /* セレクトボックス & 入力エリア */
-    div[data-baseweb="select"] > div {
+    div[data-baseweb="input"] input {
+        color: #F8FAFC !important;
         background-color: #1E293B !important;
-        border: 1px solid #475569 !important;
-        color: #F8FAFC !important;
     }
-    div[data-baseweb="select"] * {
-        color: #F8FAFC !important;
-    }
-    
     .stButton>button, .stLinkButton>a {
         border-radius: 10px !important;
         font-weight: bold !important;
@@ -125,195 +108,6 @@ def save_history(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 # ==========================================
-# チームエンブレムURLマップ
-# ==========================================
-TEAM_LOGOS = {
-    "arsenal": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png",
-    "wolves": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/b92Xo_yS75bX6d8f8XqHfw_500x500.png",
-    "wolverhampton": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/b92Xo_yS75bX6d8f8XqHfw_500x500.png",
-    "aston villa": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/uyNNelfnFvCEnsLrUL-j2Q_500x500.png",
-    "brighton": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/EKIe0e-ZIphOcfQAwsuEEQ_500x500.png",
-    "tottenham": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/k3Q_mKE98Dnohrcea0JFgQ_500x500.png",
-    "man city": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/z44l-a0W1v5FmgPnemV6Xw_500x500.png",
-    "leicester": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/UD94d8cu06nh6-Z8sS9j2A_500x500.png",
-    "chelsea": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/fhBITrIlbQxhVB6IjxUO6Q_500x500.png",
-    "liverpool": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/nGfV05dipbAc7zzojivKew_500x500.png"
-}
-
-def get_logo_url(team_name):
-    t = team_name.lower()
-    for k, url in TEAM_LOGOS.items():
-        if k in t:
-            return url
-    return "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png"
-
-# ==========================================
-# プレミアリーグ 実際の公式記録データ
-# ==========================================
-OFFICIAL_FIXTURES = [
-    {
-        "label": "第1節: アーセナル vs ウルヴス (2-0)",
-        "match_id": "4506307",
-        "match_name": "Premier League 第1節",
-        "date": "2024-08-17",
-        "match_day": 17,
-        "home_team": "Arsenal",
-        "away_team": "Wolves",
-        "home_score": 2,
-        "away_score": 0,
-        "scorers": [29, 7],         # Havertz (29), Saka (07)
-        "assist": 7,               # Saka (07)
-        "goal_time": 25,           # 25分
-        "top_passer": 6,           # Gabriel (06)
-        "shots": 18,
-        "possession": 53,
-        "top_defender": 2,         # Saliba
-        "first_sub": 11            # Martinelli
-    },
-    {
-        "label": "第2節: アストン・ヴィラ vs アーセナル (0-2)",
-        "match_id": "4506318",
-        "match_name": "Premier League 第2節",
-        "date": "2024-08-24",
-        "match_day": 24,
-        "home_team": "Aston Villa",
-        "away_team": "Arsenal",
-        "home_score": 0,
-        "away_score": 2,
-        "scorers": [19, 5],        # Trossard (19), Partey (05)
-        "assist": 7,               # Saka (07)
-        "goal_time": 67,           # 67分 (67-37 = 30)
-        "top_passer": 6,           # Gabriel (06)
-        "shots": 9,
-        "possession": 61,
-        "top_defender": 2,         # Saliba
-        "first_sub": 19            # Trossard
-    },
-    {
-        "label": "第3節: アーセナル vs ブライトン (1-1)",
-        "match_id": "4506327",
-        "match_name": "Premier League 第3節",
-        "date": "2024-08-31",
-        "match_day": 31,
-        "home_team": "Arsenal",
-        "away_team": "Brighton",
-        "home_score": 1,
-        "away_score": 1,
-        "scorers": [29],           # Havertz (29)
-        "assist": 7,               # Saka (07)
-        "goal_time": 38,           # 38分 (38-37 = 01)
-        "top_passer": 6,           # Gabriel
-        "shots": 11,
-        "possession": 36,
-        "top_defender": 2,         # Saliba
-        "first_sub": 33            # Calafiori
-    },
-    {
-        "label": "第4節: トッテナム vs アーセナル (0-1)",
-        "match_id": "4506338",
-        "match_name": "Premier League 第4節",
-        "date": "2024-09-15",
-        "match_day": 15,
-        "home_team": "Tottenham",
-        "away_team": "Arsenal",
-        "home_score": 0,
-        "away_score": 1,
-        "scorers": [6],            # Gabriel (06)
-        "assist": 7,               # Saka (07)
-        "goal_time": 64,           # 64分 (64-37 = 27)
-        "top_passer": 4,           # White (04)
-        "shots": 7,
-        "possession": 36,
-        "top_defender": 2,         # Saliba
-        "first_sub": 17            # Sterling
-    },
-    {
-        "label": "第5節: マンチェスター・C vs アーセナル (2-2)",
-        "match_id": "4506349",
-        "match_name": "Premier League 第5節",
-        "date": "2024-09-22",
-        "match_day": 22,
-        "home_team": "Man City",
-        "away_team": "Arsenal",
-        "home_score": 2,
-        "away_score": 2,
-        "scorers": [33, 6],        # Calafiori (33), Gabriel (06)
-        "assist": 11,              # Martinelli (11)
-        "goal_time": 22,           # 22分
-        "top_passer": 6,           # Gabriel
-        "shots": 5,
-        "possession": 22,
-        "top_defender": 2,         # Saliba
-        "first_sub": 4             # White
-    },
-    {
-        "label": "第6節: アーセナル vs レスター (4-2)",
-        "match_id": "4506360",
-        "match_name": "Premier League 第6節",
-        "date": "2024-09-28",
-        "match_day": 28,
-        "home_team": "Arsenal",
-        "away_team": "Leicester",
-        "home_score": 4,
-        "away_score": 2,
-        "scorers": [11, 19, 29],   # Martinelli (11), Trossard (19), Havertz (29)
-        "assist": 12,              # Timber (12)
-        "goal_time": 20,           # 20分
-        "top_passer": 41,          # Rice (41-37 = 04)
-        "shots": 36,
-        "possession": 75,          # 75-37 = 38 -> 01
-        "top_defender": 2,         # Saliba
-        "first_sub": 53            # Nwaneri (53-37 = 16)
-    }
-]
-
-@st.cache_data(ttl=600)
-def fetch_arsenal_fixtures_dynamic():
-    """FotMob API (id: 9825) から最新の試合日程を動的取得"""
-    url = "https://www.fotmob.com/api/teams?id=9825"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    try:
-        res = requests.get(url, headers=headers, timeout=4)
-        if res.status_code == 200:
-            data = res.json()
-            # overview または fixtures から試合リストを抽出
-            fix_list = data.get("overview", {}).get("fixtures", []) or data.get("fixtures", {}).get("allFixtures", {}).get("fixtures", [])
-            dynamic_list = []
-            for m in fix_list[:10]:
-                if m.get("status", {}).get("finished"):
-                    h_name = m.get("home", {}).get("name", "")
-                    a_name = m.get("away", {}).get("name", "")
-                    h_score = m.get("home", {}).get("score", 0)
-                    a_score = m.get("away", {}).get("score", 0)
-                    m_id = str(m.get("id"))
-                    dynamic_list.append({
-                        "label": f"{h_name} vs {a_name} ({h_score}-{a_score})",
-                        "match_id": m_id,
-                        "match_name": m.get("tournament", {}).get("name", "Match"),
-                        "date": m.get("status", {}).get("utcTime", "")[:10],
-                        "match_day": int(m.get("status", {}).get("utcTime", "")[8:10]) if len(m.get("status", {}).get("utcTime", "")) >= 10 else 1,
-                        "home_team": h_name,
-                        "away_team": a_name,
-                        "home_score": int(h_score),
-                        "away_score": int(a_score),
-                        "scorers": [7, 29],
-                        "assist": 8,
-                        "goal_time": 15,
-                        "top_passer": 6,
-                        "shots": 15,
-                        "possession": 55,
-                        "top_defender": 2,
-                        "first_sub": 19
-                    })
-            if dynamic_list:
-                return dynamic_list
-    except Exception:
-        pass
-    return OFFICIAL_FIXTURES
-
-# ==========================================
 # ロト7 採番ロジック
 # ==========================================
 def convert_to_loto_number(val):
@@ -325,56 +119,62 @@ def convert_to_loto_number(val):
     except (ValueError, TypeError):
         return 1
 
-def generate_ticket_1(stats, og_override_num=None):
+def generate_ticket_1(stats):
+    """1口目：スタッツ連動型（可変得点者スロット ＋ 優先順位 ＋ 重複フォールバック）"""
     selected = []
     log_details = []
 
+    # ① 得点者全員の背番号
     scorers = stats.get("scorers", [])
-    if og_override_num is not None:
-        scorers = [og_override_num] + [s for s in scorers if s != og_override_num]
-
     for sc in scorers:
         num = convert_to_loto_number(sc)
         if num not in selected and len(selected) < 7:
             selected.append(num)
             log_details.append(f"得点者: {num:02d}")
 
+    # ② 先制アシスト者
     if len(selected) < 7 and stats.get("assist"):
         num = convert_to_loto_number(stats["assist"])
         if num not in selected:
             selected.append(num)
             log_details.append(f"先制アシスト: {num:02d}")
 
+    # ③ 先制ゴール時間（分）
     if len(selected) < 7 and stats.get("goal_time"):
         num = convert_to_loto_number(stats["goal_time"])
         if num not in selected:
             selected.append(num)
             log_details.append(f"ゴール時間: {num:02d}分")
 
+    # ④ パス成功数 1位
     if len(selected) < 7 and stats.get("top_passer"):
         num = convert_to_loto_number(stats["top_passer"])
         if num not in selected:
             selected.append(num)
             log_details.append(f"パス1位: {num:02d}")
 
+    # ⑤ チーム総シュート数
     if len(selected) < 7 and stats.get("shots"):
         num = convert_to_loto_number(stats["shots"])
         if num not in selected:
             selected.append(num)
             log_details.append(f"総シュート数: {num:02d}")
 
+    # ⑥ ボール支配率（%）
     if len(selected) < 7 and stats.get("possession"):
         num = convert_to_loto_number(stats["possession"])
         if num not in selected:
             selected.append(num)
             log_details.append(f"支配率: {num:02d}")
 
+    # ⑦ 試合開催日（日）
     if len(selected) < 7 and stats.get("match_day"):
         num = convert_to_loto_number(stats["match_day"])
         if num not in selected:
             selected.append(num)
             log_details.append(f"開催日: {num:02d}日")
 
+    # 重複時の予備差し替え（⑧守備 ➔ ⑨伝統枠 ➔ ⑩サブ）
     fallback_pool = [
         stats.get("top_defender", 2),
         14, 13, 18, 1,
@@ -403,7 +203,60 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# メイン画面 UI構築
+# FotMob API パース関数（URL / ID両対応）
+# ==========================================
+def extract_match_id(input_str):
+    match = re.search(r'(\d{6,8})', input_str)
+    return match.group(1) if match else input_str.strip()
+
+def fetch_from_fotmob(match_id):
+    if not match_id:
+        return {"success": False}
+        
+    url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Referer": "https://www.fotmob.com/"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            general = data.get("general", {})
+            header = data.get("header", {})
+            teams = header.get("teams", [])
+            
+            home_name = teams[0].get("name", "Home") if len(teams) > 0 else "Arsenal"
+            away_name = teams[1].get("name", "Away") if len(teams) > 1 else "Opponent"
+            home_score = teams[0].get("score", 0) if len(teams) > 0 else 0
+            away_score = teams[1].get("score", 0) if len(teams) > 1 else 0
+            
+            is_arsenal_home = "arsenal" in home_name.lower()
+            arsenal_score = home_score if is_arsenal_home else away_score
+            opp_score = away_score if is_arsenal_home else home_score
+            
+            match_date_str = general.get("matchTimeUTC", "")
+            match_day = int(match_date_str[8:10]) if len(match_date_str) >= 10 else 17
+            
+            return {
+                "success": True,
+                "match_name": f"{home_name} vs {away_name}",
+                "date": match_date_str[:10],
+                "match_day": match_day,
+                "home_team": home_name,
+                "away_team": away_name,
+                "home_score": int(home_score),
+                "away_score": int(away_score),
+                "arsenal_score": int(arsenal_score),
+                "opp_score": int(opp_score),
+                "fotmob_url": f"https://www.fotmob.com/matches/{match_id}"
+            }
+    except Exception:
+        pass
+    return {"success": False}
+
+# ==========================================
+# メイン画面 UI
 # ==========================================
 st.markdown("""
 <div class="arsenal-header">
@@ -411,61 +264,91 @@ st.markdown("""
         <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="30" height="30" style="object-fit:contain;">
         <span style="font-size:18px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
     </div>
-    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">Premier League</span>
+    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">Official Match Mode</span>
 </div>
 """, unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["⚽ 試合 & ナンバー算出", "📊 シーズン収支管理"])
 
-# --------------------------------------------------
-# TAB 1: 試合 & ナンバー算出
-# --------------------------------------------------
 with tab1:
-    fixtures = fetch_arsenal_fixtures_dynamic()
-    
-    # 節選択プルダウン（実在する試合一覧）
-    fixture_labels = [f["label"] for f in fixtures]
-    selected_idx = st.selectbox(
-        "📅 試合を選択（FotMob自動連動）",
-        range(len(fixture_labels)),
-        format_func=lambda i: fixture_labels[i]
+    st.markdown("**1. FotMob 試合URL または Match ID を入力**")
+
+    # スマホ向け操作ガイド（折りたたみ）
+    with st.expander("📱 FotMobアプリからのURL取得方法（タップで開く）"):
+        st.markdown("""
+        1. **FotMobアプリ**でアーセナルの試合を開く
+        2. 右上の **共有アイコン（シェアボタン）** をタップ
+        3. **「リンクをコピー」** を選択
+        4. 下の入力欄にそのままペースト（末尾のMatch IDを自動抽出します）
+        """)
+
+    match_input = st.text_input(
+        "URLまたはIDを入力",
+        value="https://www.fotmob.com/matches/arsenal-vs-wolverhampton-wanderers/4506307",
+        placeholder="https://fotmob.com/match/... または Match ID"
     )
-    
-    match_data = fixtures[selected_idx]
-    fotmob_url = f"https://www.fotmob.com/matches/{match_data['match_id']}"
 
-    home_logo = get_logo_url(match_data["home_team"])
-    away_logo = get_logo_url(match_data["away_team"])
+    match_id = extract_match_id(match_input)
+    api_result = fetch_from_fotmob(match_id)
 
-    # アーセナルの得失点差判定
-    is_arsenal_home = "arsenal" in match_data["home_team"].lower()
-    arsenal_score = match_data["home_score"] if is_arsenal_home else match_data["away_score"]
-    opp_score = match_data["away_score"] if is_arsenal_home else match_data["home_score"]
-    gd = arsenal_score - opp_score
+    if api_result.get("success"):
+        st.success(f"✅ FotMobから試合データを自動取得しました: {api_result['match_name']}")
+        def_home = api_result["home_team"]
+        def_away = api_result["away_team"]
+        def_h_score = api_result["home_score"]
+        def_a_score = api_result["away_score"]
+        def_day = api_result["match_day"]
+        def_url = api_result["fotmob_url"]
+    else:
+        st.info("💡 URLまたはIDからスタッツを設定します（数値を手動調整できます）。")
+        def_home = "Arsenal"
+        def_away = "Wolves"
+        def_h_score = 2
+        def_a_score = 0
+        def_day = 17
+        def_url = f"https://www.fotmob.com/matches/{match_id}" if match_id else "https://www.fotmob.com"
 
+    # スタッツ確認 & 調整セクション
+    with st.expander("📝 試合情報 & スタッツ詳細（OG補正・微調整）", expanded=True):
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            h_team = st.text_input("ホームチーム", value=def_home)
+            h_score = st.number_input("ホーム得点", min_value=0, value=def_h_score)
+        with col_m2:
+            a_team = st.text_input("アウェイチーム", value=def_away)
+            a_score = st.number_input("アウェイ得点", min_value=0, value=def_a_score)
+
+        st.caption("【ロト7連動スタッツ】※OG発生時は誘発選手の背番号を入力")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            scorers_str = st.text_input("① 得点者 背番号（カンマ区切り）", value="29, 7", help="例: 29, 7")
+            assist_num = st.number_input("② 先制アシスト 背番号（0でなし）", min_value=0, max_value=99, value=7)
+            goal_time = st.number_input("③ 先制ゴール時間（分）", min_value=1, max_value=120, value=25)
+        with col_s2:
+            passer_num = st.number_input("④ パス数1位 背番号", min_value=1, max_value=99, value=6)
+            shots_num = st.number_input("⑤ チーム総シュート数", min_value=0, value=18)
+            possession_num = st.number_input("⑥ ボール支配率 (%)", min_value=0, max_value=100, value=53)
+            match_day_num = st.number_input("⑦ 試合開催日 (日)", min_value=1, max_value=31, value=def_day)
+
+    # 勝敗判定 & 口数計算
+    is_ars_home = "arsenal" in h_team.lower()
+    ars_score = h_score if is_ars_home else a_score
+    opp_score = a_score if is_ars_home else h_score
+    gd = ars_score - opp_score
     tickets_count = max(0, min(5, gd)) if gd > 0 else 0
     total_cost = tickets_count * 300
 
-    # スコアボード表示
+    # スコアカード
     st.markdown(f"""
     <div class="match-card">
         <div style="display:flex; justify-content:space-between; font-size:12px; color:#94A3B8; margin-bottom:8px;">
-            <span>{match_data['match_name']} (Match ID: {match_data['match_id']})</span>
+            <span>Match ID: {match_id}</span>
             <span style="color:#34D399; font-weight:bold;">FT (試合終了)</span>
         </div>
         <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
-            <div style="text-align:center; width:90px;">
-                <img src="{home_logo}" width="54" height="54" style="object-fit:contain; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));">
-                <div style="font-weight:bold; font-size:14px; margin-top:6px;">{match_data['home_team']}</div>
-            </div>
-            <div style="text-align:center;">
-                <div style="font-size:34px; font-weight:900; letter-spacing:3px;">{match_data['home_score']} - {match_data['away_score']}</div>
-                <div style="font-size:11px; color:#94A3B8;">Date: {match_data['date']}</div>
-            </div>
-            <div style="text-align:center; width:90px;">
-                <img src="{away_logo}" width="54" height="54" style="object-fit:contain; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));">
-                <div style="font-weight:bold; font-size:14px; margin-top:6px;">{match_data['away_team']}</div>
-            </div>
+            <div style="text-align:center; font-weight:bold; font-size:16px;">{h_team}</div>
+            <div style="font-size:34px; font-weight:900; letter-spacing:3px;">{h_score} - {a_score}</div>
+            <div style="text-align:center; font-weight:bold; font-size:16px;">{a_team}</div>
         </div>
         <div class="badge-win">
             <span>🎯 判定: 得失点差 {'+' if gd > 0 else ''}{gd}点差</span>
@@ -474,21 +357,29 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-    # 選択中の試合詳細へ飛ぶリンク
-    st.link_button("🔗 FotMobでこの試合のスタッツ詳細を見る", fotmob_url, use_container_width=True)
+    st.link_button("🔗 FotMobでこの試合の詳細ページを開く", def_url, use_container_width=True)
 
-    # オウンゴール手動補正オプション
-    og_override = None
-    with st.expander("⚙️ オウンゴール（OG）または手動背番号補正"):
-        st.caption("先制点がOGの場合や、スタッツを修正したい場合はここで指定します。")
-        use_manual = st.checkbox("手動で先制誘発者を指定する")
-        if use_manual:
-            manual_num = st.number_input("誘発した選手の背番号を入力", min_value=1, max_value=99, value=29)
-            og_override = int(manual_num)
+    scorers_list = []
+    for s in scorers_str.split(","):
+        s = s.strip()
+        if s.isdigit():
+            scorers_list.append(int(s))
 
-    # 数字算出
+    current_stats = {
+        "scorers": scorers_list,
+        "assist": assist_num if assist_num > 0 else None,
+        "goal_time": goal_time,
+        "top_passer": passer_num,
+        "shots": shots_num,
+        "possession": possession_num,
+        "match_day": match_day_num,
+        "top_defender": 2,
+        "first_sub": 19
+    }
+
+    # ロト7採番結果表示
     if tickets_count > 0:
-        t1_nums, t1_logs = generate_ticket_1(match_data, og_override)
+        t1_nums, t1_logs = generate_ticket_1(current_stats)
         t2_nums = generate_ticket_2()
         t3_nums = generate_ticket_qp()
 
@@ -509,10 +400,10 @@ with tab1:
             st.markdown(f'<div class="ball-container">{balls_html_3}</div>', unsafe_allow_html=True)
             st.caption(" ➔ 自動ランダム採番")
 
-        # コピペ用コードブロック
+        # コピペ用テキスト生成
         st.divider()
-        copy_text = f"""【ロト7 購入シート】{match_data['match_name']}
-スコア: {match_data['home_team']} {match_data['home_score']} - {match_data['away_score']} {match_data['away_team']}
+        copy_text = f"""【ロト7 購入シート】
+対戦: {h_team} {h_score} - {a_score} {a_team}
 購入口数: {tickets_count}口 ({total_cost:,}円)
 1口目: {' '.join([f'{n:02d}' for n in t1_nums])}"""
         if tickets_count >= 2:
@@ -523,14 +414,14 @@ with tab1:
         st.markdown("**📋 購入用テキスト（右上のアイコンで1タップコピー）**")
         st.code(copy_text, language="text")
 
-        # 履歴保存ボタン
+        # 購入履歴保存ボタン
         if st.button("💾 この試合を購入履歴に保存", use_container_width=True):
             history = load_history()
-            opp_name = match_data['away_team'] if is_arsenal_home else match_data['home_team']
+            opp_name = a_team if is_ars_home else h_team
             new_record = {
-                "date": match_data["date"],
+                "date": f"2026-08-{match_day_num:02d}",
                 "opponent": opp_name,
-                "score": f"{arsenal_score}-{opp_score}",
+                "score": f"{ars_score}-{opp_score}",
                 "tickets": tickets_count,
                 "cost": total_cost,
                 "ticket_1": t1_nums,
@@ -540,16 +431,12 @@ with tab1:
             }
             history.insert(0, new_record)
             save_history(history)
-            st.success(f"{match_data['match_name']} を購入履歴に保存しました！")
+            st.success(f"{h_team} vs {a_team} の購入データを保存しました！")
     else:
-        st.info("今節は引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
+        st.info("引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
 
-# --------------------------------------------------
-# TAB 2: シーズン収支管理
-# --------------------------------------------------
 with tab2:
     history = load_history()
-    
     total_spent = sum([item.get("cost", 0) for item in history])
     total_won = sum([item.get("hit_amount", 0) for item in history])
     net_balance = total_won - total_spent
@@ -569,10 +456,9 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("**📜 試合別履歴 & 当せん入力**")
     if history:
         for idx, rec in enumerate(history):
-            with st.expander(f"{rec['date']} vs {rec['opponent']} ({rec['score']}) - {rec['tickets']}口"):
+            with st.expander(f"{rec.get('date', '')} vs {rec['opponent']} ({rec['score']}) - {rec['tickets']}口"):
                 col_h1, col_h2 = st.columns(2)
                 with col_h1:
                     st.write(f"購入額: {rec['cost']:,}円")
