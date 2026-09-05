@@ -175,17 +175,20 @@ SCHEDULE_2026_27 = [
     {"round": 38, "opp": "ブライトン", "ha": "H", "day": 30}
 ]
 
-# アーセナル背番号マスター（ラヤ=#1）
+# 画像（FotMob最新スカッド一覧）を完全反映した背番号マスター
 ARSENAL_SQUAD_NUMBERS = {
-    "raya": 1, "saliba": 2, "tierney": 3, "white": 4, "partey": 5,
-    "gabriel": 6, "saka": 7, "odegaard": 8, "jesus": 9, "martinelli": 11,
-    "timber": 12, "zinchenko": 17, "trossard": 19, "jorginho": 20,
-    "merino": 23, "havertz": 29, "sterling": 30, "calafiori": 33,
-    "rice": 41, "lewis-skelly": 49, "skelly": 49, "nwaneri": 53
+    "raya": 1, "kepa": 13, "meslier": 30,
+    "white": 4, "timber": 12, "saliba": 2, "mosquera": 3,
+    "gabriel": 6, "konsa": 15, "hincapié": 5, "hincapie": 5,
+    "calafiori": 33, "lewis-skelly": 49, "skelly": 49,
+    "rice": 41, "odegaard": 8, "merino": 23, "zubimendi": 36,
+    "guimarães": 39, "guimaraes": 39, "eze": 10, "dowman": 56,
+    "saka": 7, "madueke": 20, "tzolis": 17, "gyökeres": 14,
+    "gyokeres": 14, "havertz": 29
 }
 
 # ==========================================
-# ロト7 採番ロジック（38以上のみ -37 適用）
+# ロト7 採番ロジック（①〜⑩ 厳密順序＆重複排除）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -200,99 +203,72 @@ def generate_ticket_1(stats):
     selected = []
     log_details = []
 
+    def try_add(val, label):
+        if len(selected) >= 7:
+            return
+        num = convert_to_loto_number(val)
+        if num not in selected:
+            selected.append(num)
+            orig = f"({val}➔{num:02d})" if int(val) > 37 else f"({num:02d})"
+            log_details.append(f"{label}: {orig}")
+
     # ① 得点者全員の背番号
     for sc in stats.get("scorers", []):
-        num = convert_to_loto_number(sc)
-        if num not in selected and len(selected) < 7:
-            selected.append(num)
-            orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
-            log_details.append(f"①得点者: {orig}")
+        try_add(sc, "①得点者")
 
     # ② 先制点 アシスト者
-    if len(selected) < 7 and stats.get("assist"):
-        sc = stats["assist"]
-        num = convert_to_loto_number(sc)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
-            log_details.append(f"②アシスト: {orig}")
+    if stats.get("assist"):
+        try_add(stats["assist"], "②アシスト")
 
     # ③ 先制ゴール時間
-    if len(selected) < 7 and stats.get("goal_time"):
-        sc = stats["goal_time"]
-        num = convert_to_loto_number(sc)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({sc}分➔{num:02d})" if sc > 37 else f"({num:02d}分)"
-            log_details.append(f"③ゴール時間: {orig}")
+    if stats.get("goal_time"):
+        try_add(stats["goal_time"], "③ゴール時間")
 
     # ④ パス成功数 1位
     passer_val = stats.get("passer", 49)
     if passer_val in [1, "1", 0, "0"]:
         passer_val = 49
-    if len(selected) < 7 and passer_val:
-        num = convert_to_loto_number(passer_val)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({passer_val}➔{num:02d})" if passer_val > 37 else f"({num:02d})"
-            log_details.append(f"④パス1位: {orig}")
+    try_add(passer_val, "④パス1位")
 
     # ⑤ チーム総シュート数
-    if len(selected) < 7 and stats.get("shots"):
-        sc = stats["shots"]
-        num = convert_to_loto_number(sc)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({sc}本➔{num:02d})" if sc > 37 else f"({num:02d})"
-            log_details.append(f"⑤シュート数: {orig}")
+    if stats.get("shots"):
+        try_add(stats["shots"], "⑤シュート数")
 
     # ⑥ ボール支配率
-    if len(selected) < 7 and stats.get("poss"):
-        sc = stats["poss"]
-        num = convert_to_loto_number(sc)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({sc}%➔{num:02d})" if sc > 37 else f"({num:02d})"
-            log_details.append(f"⑥支配率: {orig}")
+    if stats.get("poss"):
+        try_add(stats["poss"], "⑥支配率")
 
     # ⑦ 試合開催日
-    if len(selected) < 7 and stats.get("day"):
-        sc = stats["day"]
-        num = convert_to_loto_number(sc)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({sc}日➔{num:02d})" if sc > 37 else f"({num:02d})"
-            log_details.append(f"⑦開催日: ({num:02d}日)")
+    if stats.get("day"):
+        try_add(stats["day"], "⑦開催日")
 
-    # ⑧ 守備陣最上位 / GK（評価点トップDF、またはGKラヤ等）
-    best_def_gk_num = stats.get("best_def_gk_num")
-    if not best_def_gk_num:
-        best_def_gk_num = 2 # フォールバックとしてサリバ(#2)等を設定
-    if len(selected) < 7:
-        num = convert_to_loto_number(best_def_gk_num)
+    # ⑧ 守備陣最上位 / GK（評価点トップDF/GK、重複時は次点の選手を探索）
+    def_candidates = stats.get("def_gk_candidates", [2, 4, 6, 12, 1])
+    for d_num in def_candidates:
+        if len(selected) >= 7:
+            break
+        num = convert_to_loto_number(d_num)
         if num not in selected:
             selected.append(num)
-            orig = f"({best_def_gk_num}➔{num:02d})" if best_def_gk_num > 37 else f"({num:02d})"
+            orig = f"({d_num}➔{num:02d})" if d_num > 37 else f"({num:02d})"
             log_details.append(f"⑧最高評価DF/GK: {orig}")
+            break
 
     # ⑨ クラブ伝統枠（14 ➔ 13 ➔ 18 ➔ 01）
     tradition_list = [14, 13, 18, 1]
     for t_num in tradition_list:
-        if len(selected) < 7:
-            num = convert_to_loto_number(t_num)
-            if num not in selected:
-                selected.append(num)
-                label_name = {14: "アンリ#14", 13: "優勝数#13", 18: "創設年#18", 1: "伝統#01"}.get(t_num, "")
-                log_details.append(f"⑨クラブ伝統枠({label_name}): ({num:02d})")
-
-    # ⑩ ファースト・サブ（最初に入った交代選手の背番号）
-    first_sub_num = stats.get("first_sub_num", 53)
-    if len(selected) < 7 and first_sub_num:
-        num = convert_to_loto_number(first_sub_num)
+        if len(selected) >= 7:
+            break
+        num = convert_to_loto_number(t_num)
         if num not in selected:
             selected.append(num)
-            orig = f"({first_sub_num}➔{num:02d})" if first_sub_num > 37 else f"({num:02d})"
-            log_details.append(f"⑩ファースト・サブ: {orig}")
+            label_name = {14: "アンリ/ギェケレシュ#14", 13: "ケパ#13", 18: "創設年#18", 1: "ラヤ#01"}.get(t_num, "")
+            log_details.append(f"⑨クラブ伝統枠({label_name}): ({num:02d})")
+
+    # ⑩ ファースト・サブ
+    first_sub_num = stats.get("first_sub_num", 53)
+    if len(selected) < 7 and first_sub_num:
+        try_add(first_sub_num, "⑩ファースト・サブ")
 
     return sorted(selected), log_details
 
@@ -309,7 +285,7 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# Webページ解析（⑧の評価点トップDF/GK抽出強化版）
+# Webページ解析（画像準拠の背番号・評価点リスト抽出）
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
     if not url_or_text:
@@ -383,9 +359,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             if pnum and pid:
                 player_number_map[pid] = pnum
 
-        # ⑧ 評価点最高DF/GKの特定
-        best_def_gk_num = 2 # デフォルトDFサリバ
-        highest_rating = -1.0
+        # ⑧ 評価点順にソートしたGK/DFの候補リストを作成
+        def_gk_scored = []
 
         for p in ars_players_all:
             pid = str(p.get("id", ""))
@@ -411,17 +386,21 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             elif isinstance(rc, (int, float)):
                 rating = float(rc)
 
-            # GKまたはDFの判定条件を広げる
             is_def_gk = ("gk" in pos or "def" in pos or "keeper" in role or "defender" in role or 
-                         pnum in [1, 2, 3, 4, 6, 12, 17, 33])
+                         pnum in [1, 2, 3, 4, 5, 6, 12, 13, 15, 33])
 
             if is_def_gk and pnum:
-                if rating >= highest_rating:
-                    highest_rating = rating
-                    best_def_gk_num = pnum
+                def_gk_scored.append((rating, pnum))
+
+        def_gk_scored.sort(key=lambda x: x[0], reverse=True)
+        def_candidates = [num for rat, num in def_gk_scored]
+        
+        for fallback_n in [33, 2, 4, 6, 12, 1, 3, 5, 15]:
+            if fallback_n not in def_candidates:
+                def_candidates.append(fallback_n)
 
         # ⑩ ファースト・サブの特定
-        first_sub_num = 53
+        first_sub_num = 56 # Dowmanなど
         if subs and len(subs) > 0:
             first_sub_p = subs[0]
             fs_id = str(first_sub_p.get("id", ""))
@@ -502,7 +481,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "passer": top_passer_number,
             "shots": shots,
             "possession": possession,
-            "best_def_gk_num": best_def_gk_num,
+            "def_gk_candidates": def_candidates,
             "first_sub_num": first_sub_num
         }, None
 
@@ -570,8 +549,8 @@ with tab1:
                 "shots": 15,
                 "poss": 55,
                 "day": m.get("day", 1),
-                "best_def_gk_num": 2,
-                "first_sub_num": 53
+                "def_gk_candidates": [33, 2, 4, 6, 1],
+                "first_sub_num": 56
             }
 
     cur = st.session_state[state_key]
@@ -606,11 +585,11 @@ with tab1:
                     cur["passer"] = 49
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
-                    cur["best_def_gk_num"] = fetched["best_def_gk_num"]
+                    cur["def_gk_candidates"] = fetched["def_gk_candidates"]
                     cur["first_sub_num"] = fetched["first_sub_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("スタッツ、最高評価DF/GK、ファーストサブを正常抽出・保存しました！")
+                    st.success("最新スカッド情報を元にスタッツを正常抽出・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
