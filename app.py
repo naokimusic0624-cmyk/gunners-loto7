@@ -115,47 +115,47 @@ def save_history(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 # ==========================================
-# 2026-27シーズン 全38節公式日程マスター（確定データ削除済・未確定状態）
+# 2026-27シーズン 全38節公式日程マスター
 # ==========================================
 SCHEDULE_2026_27 = [
-    {"round": 1, "opp": "コヴェントリー・シティ", "en_opp": "coventry", "ha": "H", "status": "UPCOMING", "day": 22},
-    {"round": 2, "opp": "アストン・ヴィラ", "en_opp": "villa", "ha": "A", "status": "UPCOMING", "day": 1},
-    {"round": 3, "opp": "チェルシー", "en_opp": "chelsea", "ha": "H", "status": "UPCOMING", "day": 7},
-    {"round": 4, "opp": "サンダーランド", "en_opp": "sunderland", "ha": "A", "status": "UPCOMING", "day": 13},
-    {"round": 5, "opp": "ブライトン", "en_opp": "brighton", "ha": "A", "status": "UPCOMING", "day": 19},
-    {"round": 6, "opp": "リーズ・ユナイテッド", "en_opp": "leeds", "ha": "H", "status": "UPCOMING", "day": 10},
-    {"round": 7, "opp": "ノッティンガム・フォレスト", "en_opp": "forest", "ha": "A", "status": "UPCOMING", "day": 19},
-    {"round": 8, "opp": "エヴァートン", "en_opp": "everton", "ha": "H", "status": "UPCOMING", "day": 24},
-    {"round": 9, "opp": "リヴァプール", "en_opp": "liverpool", "ha": "A", "status": "UPCOMING", "day": 2},
-    {"round": 10, "opp": "ハル・シティ", "en_opp": "hull", "ha": "H", "status": "UPCOMING", "day": 8},
-    {"round": 11, "opp": "ニューカッスル・ユナイテッド", "en_opp": "newcastle", "ha": "A", "status": "UPCOMING", "day": 22},
-    {"round": 12, "opp": "マンチェスター・シティ", "en_opp": "man city", "ha": "H", "status": "UPCOMING", "day": 29},
-    {"round": 13, "opp": "ブレントフォード", "en_opp": "brentford", "ha": "A", "status": "UPCOMING", "day": 5},
-    {"round": 14, "opp": "トッテナム・ホットスパー", "en_opp": "tottenham", "ha": "A", "status": "UPCOMING", "day": 12},
-    {"round": 15, "opp": "ボーンマス", "en_opp": "bournemouth", "ha": "H", "status": "UPCOMING", "day": 19},
-    {"round": 16, "opp": "マンチェスター・ユナイテッド", "en_opp": "manchester united", "ha": "H", "status": "UPCOMING", "day": 26},
-    {"round": 17, "opp": "クリスタル・パレス", "en_opp": "crystal palace", "ha": "A", "status": "UPCOMING", "day": 29},
-    {"round": 18, "opp": "フラム", "en_opp": "fulham", "ha": "A", "status": "UPCOMING", "day": 2},
-    {"round": 19, "opp": "イプスウィッチ・タウン", "en_opp": "ipswich", "ha": "H", "status": "UPCOMING", "day": 16},
-    {"round": 20, "opp": "ブレントフォード", "en_opp": "brentford", "ha": "H", "status": "UPCOMING", "day": 23},
-    {"round": 21, "opp": "ハル・シティ", "en_opp": "hull", "ha": "A", "status": "UPCOMING", "day": 30},
-    {"round": 22, "opp": "ニューカッスル・ユナイテッド", "en_opp": "newcastle", "ha": "H", "status": "UPCOMING", "day": 6},
-    {"round": 23, "opp": "マンチェスター・シティ", "en_opp": "man city", "ha": "A", "status": "UPCOMING", "day": 13},
-    {"round": 24, "opp": "リヴァプール", "en_opp": "liverpool", "ha": "H", "status": "UPCOMING", "day": 20},
-    {"round": 25, "opp": "イプスウィッチ・タウン", "en_opp": "ipswich", "ha": "A", "status": "UPCOMING", "day": 27},
-    {"round": 26, "opp": "フラム", "en_opp": "fulham", "ha": "H", "status": "UPCOMING", "day": 6},
-    {"round": 27, "opp": "マンチェスター・ユナイテッド", "en_opp": "manchester united", "ha": "A", "status": "UPCOMING", "day": 13},
-    {"round": 28, "opp": "クリスタル・パレス", "en_opp": "crystal palace", "ha": "H", "status": "UPCOMING", "day": 3},
-    {"round": 29, "opp": "チェルシー", "en_opp": "chelsea", "ha": "A", "status": "UPCOMING", "day": 10},
-    {"round": 30, "opp": "サンダーランド", "en_opp": "sunderland", "ha": "H", "status": "UPCOMING", "day": 17},
-    {"round": 31, "opp": "コヴェントリー・シティ", "en_opp": "coventry", "ha": "A", "status": "UPCOMING", "day": 24},
-    {"round": 32, "opp": "アストン・ヴィラ", "en_opp": "villa", "ha": "H", "status": "UPCOMING", "day": 1},
-    {"round": 33, "opp": "ボーンマス", "en_opp": "bournemouth", "ha": "A", "status": "UPCOMING", "day": 8},
-    {"round": 34, "opp": "トッテナム・ホットスパー", "en_opp": "tottenham", "ha": "H", "status": "UPCOMING", "day": 15},
-    {"round": 35, "opp": "リーズ・ユナイテッド", "en_opp": "leeds", "ha": "A", "status": "UPCOMING", "day": 19},
-    {"round": 36, "opp": "ノッティンガム・フォレスト", "en_opp": "forest", "ha": "H", "status": "UPCOMING", "day": 23},
-    {"round": 37, "opp": "エヴァートン", "en_opp": "everton", "ha": "A", "status": "UPCOMING", "day": 26},
-    {"round": 38, "opp": "ブライトン", "en_opp": "brighton", "ha": "H", "status": "UPCOMING", "day": 30}
+    {"round": 1, "opp": "コヴェントリー・シティ", "en_opp": "coventry", "ha": "H", "day": 22},
+    {"round": 2, "opp": "アストン・ヴィラ", "en_opp": "villa", "ha": "A", "day": 1},
+    {"round": 3, "opp": "チェルシー", "en_opp": "chelsea", "ha": "H", "day": 7},
+    {"round": 4, "opp": "サンダーランド", "en_opp": "sunderland", "ha": "A", "day": 13},
+    {"round": 5, "opp": "ブライトン", "en_opp": "brighton", "ha": "A", "day": 19},
+    {"round": 6, "opp": "リーズ・ユナイテッド", "en_opp": "leeds", "ha": "H", "day": 10},
+    {"round": 7, "opp": "ノッティンガム・フォレスト", "en_opp": "forest", "ha": "A", "day": 19},
+    {"round": 8, "opp": "エヴァートン", "en_opp": "everton", "ha": "H", "day": 24},
+    {"round": 9, "opp": "リヴァプール", "en_opp": "liverpool", "ha": "A", "day": 2},
+    {"round": 10, "opp": "ハル・シティ", "en_opp": "hull", "ha": "H", "day": 8},
+    {"round": 11, "opp": "ニューカッスル・ユナイテッド", "en_opp": "newcastle", "ha": "A", "day": 22},
+    {"round": 12, "opp": "マンチェスター・シティ", "en_opp": "man city", "ha": "H", "day": 29},
+    {"round": 13, "opp": "ブレントフォード", "en_opp": "brentford", "ha": "A", "day": 5},
+    {"round": 14, "opp": "トッテナム・ホットスパー", "en_opp": "tottenham", "ha": "A", "day": 12},
+    {"round": 15, "opp": "ボーンマス", "en_opp": "bournemouth", "ha": "H", "day": 19},
+    {"round": 16, "opp": "マンチェスター・ユナイテッド", "en_opp": "manchester united", "ha": "H", "day": 26},
+    {"round": 17, "opp": "クリスタル・パレス", "en_opp": "crystal palace", "ha": "A", "day": 29},
+    {"round": 18, "opp": "フラム", "en_opp": "fulham", "ha": "A", "day": 2},
+    {"round": 19, "opp": "イプスウィッチ・タウン", "en_opp": "ipswich", "ha": "H", "day": 16},
+    {"round": 20, "opp": "ブレントフォード", "en_opp": "brentford", "ha": "H", "day": 23},
+    {"round": 21, "opp": "ハル・シティ", "en_opp": "hull", "ha": "A", "day": 30},
+    {"round": 22, "opp": "ニューカッスル・ユナイテッド", "en_opp": "newcastle", "ha": "H", "day": 6},
+    {"round": 23, "opp": "マンチェスター・シティ", "en_opp": "man city", "ha": "A", "day": 13},
+    {"round": 24, "opp": "リヴァプール", "en_opp": "liverpool", "ha": "H", "day": 20},
+    {"round": 25, "opp": "イプスウィッチ・タウン", "en_opp": "ipswich", "ha": "A", "day": 27},
+    {"round": 26, "opp": "フラム", "en_opp": "fulham", "ha": "H", "day": 6},
+    {"round": 27, "opp": "マンチェスター・ユナイテッド", "en_opp": "manchester united", "ha": "A", "day": 13},
+    {"round": 28, "opp": "クリスタル・パレス", "en_opp": "crystal palace", "ha": "H", "day": 3},
+    {"round": 29, "opp": "チェルシー", "en_opp": "chelsea", "ha": "A", "day": 10},
+    {"round": 30, "opp": "サンダーランド", "en_opp": "sunderland", "ha": "H", "day": 17},
+    {"round": 31, "opp": "コヴェントリー・シティ", "en_opp": "coventry", "ha": "A", "day": 24},
+    {"round": 32, "opp": "アストン・ヴィラ", "en_opp": "villa", "ha": "H", "day": 1},
+    {"round": 33, "opp": "ボーンマス", "en_opp": "bournemouth", "ha": "A", "day": 8},
+    {"round": 34, "opp": "トッテナム・ホットスパー", "en_opp": "tottenham", "ha": "H", "day": 15},
+    {"round": 35, "opp": "リーズ・ユナイテッド", "en_opp": "leeds", "ha": "A", "day": 19},
+    {"round": 36, "opp": "ノッティンガム・フォレスト", "en_opp": "forest", "ha": "H", "day": 23},
+    {"round": 37, "opp": "エヴァートン", "en_opp": "everton", "ha": "A", "day": 26},
+    {"round": 38, "opp": "ブライトン", "en_opp": "brighton", "ha": "H", "day": 30}
 ]
 
 ARSENAL_SQUAD_NUMBERS = {
@@ -169,9 +169,7 @@ ARSENAL_SQUAD_NUMBERS = {
 # ==========================================
 # バックグラウンド自動スタッツ同期（FotMob）
 # ==========================================
-@st.cache_data(ttl=180)
 def sync_fotmob_match_silently(en_opp, is_home):
-    """裏側でFotMobから該当試合を検索してスタッツを取得"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Referer": "https://www.fotmob.com/"
@@ -179,7 +177,7 @@ def sync_fotmob_match_silently(en_opp, is_home):
     try:
         res = requests.get("https://www.fotmob.com/api/team?id=9825", headers=headers, timeout=5)
         if res.status_code != 200:
-            return None
+            return None, f"FotMob通信エラー (HTTP {res.status_code})"
 
         data = res.json()
         raw_fixtures = []
@@ -202,17 +200,17 @@ def sync_fotmob_match_silently(en_opp, is_home):
                 break
 
         if not matched_id:
-            return None
+            return None, f"FotMob上に「{en_opp}」との該当試合データがありません"
 
         m_res = requests.get(f"https://www.fotmob.com/api/matchDetails?matchId={matched_id}", headers=headers, timeout=5)
         if m_res.status_code != 200:
-            return None
+            return None, f"詳細API通信エラー (HTTP {m_res.status_code})"
 
         m_data = m_res.json()
         header = m_data.get("header", {})
         teams = header.get("teams", [])
         if len(teams) < 2:
-            return None
+            return None, "チーム情報の取得に失敗しました"
 
         h_sc = teams[0].get("score")
         a_sc = teams[1].get("score")
@@ -290,9 +288,9 @@ def sync_fotmob_match_silently(en_opp, is_home):
             "goal_time": first_time or 20,
             "shots": shots,
             "possession": possession
-        }
-    except Exception:
-        return None
+        }, None
+    except Exception as e:
+        return None, f"例外エラー: {str(e)[:40]}"
 
 # ==========================================
 # ロト7 採番ロジック
@@ -413,68 +411,75 @@ with tab1:
     is_home = (ha == "H")
 
     state_key = f"match_data_{round_num}"
-    if state_key not in st.session_state:
-        st.session_state[state_key] = {
-            "match_id": "",
-            "h_score": 0,
-            "a_score": 0,
-            "is_finished": False,
-            "scorers": [7],
-            "assist": 8,
-            "goal_time": 20,
-            "passer": 6,
-            "shots": 15,
-            "poss": 55,
-            "day": m.get("day", 1),
-            "auto_synced": False
-        }
+    if state_key not in st.session_state or not isinstance(st.session_state[state_key], dict):
+        st.session_state[state_key] = {}
 
     cur = st.session_state[state_key]
+    cur.setdefault("match_id", "")
+    cur.setdefault("h_score", 0)
+    cur.setdefault("a_score", 0)
+    cur.setdefault("is_finished", False)
+    cur.setdefault("scorers", [7])
+    cur.setdefault("assist", 8)
+    cur.setdefault("goal_time", 20)
+    cur.setdefault("passer", 6)
+    cur.setdefault("shots", 15)
+    cur.setdefault("poss", 55)
+    cur.setdefault("day", m.get("day", 1))
+    cur.setdefault("auto_synced", False)
+    cur.setdefault("sync_status", "")
 
-    # 裏側で自動同期（未同期かつ未確定の場合にFotMob検索）
-    if not cur["auto_synced"] and not cur["is_finished"] and en_opp:
-        fetched = sync_fotmob_match_silently(en_opp, is_home)
-        if fetched and fetched.get("is_finished"):
+    # 裏側で自動同期を実行
+    if not cur.get("auto_synced", False) and en_opp:
+        fetched, err = sync_fotmob_match_silently(en_opp, is_home)
+        if fetched:
             cur["match_id"] = fetched["match_id"]
             cur["h_score"] = fetched["h_score"]
             cur["a_score"] = fetched["a_score"]
-            cur["is_finished"] = True
+            cur["is_finished"] = fetched["is_finished"]
             cur["scorers"] = fetched["scorers"]
             cur["assist"] = fetched["assist"]
             cur["goal_time"] = fetched["goal_time"]
             cur["shots"] = fetched["shots"]
             cur["poss"] = fetched["possession"]
             cur["auto_synced"] = True
+            cur["sync_status"] = "🟢 FotMobからスタッツを自動取得しました"
+        else:
+            cur["sync_status"] = f"ℹ️ 自動照合ステータス: {err}"
+
+    # 同期ステータスを小さく表示
+    if cur.get("sync_status"):
+        st.caption(cur["sync_status"])
 
     h_team = "アーセナルFC" if is_home else opp_name
     a_team = opp_name if is_home else "アーセナルFC"
 
-    # 手動補正・OG対応アコーディオン
+    # 手動調整フォーム
     with st.expander("📝 スコア & スタッツ詳細（手動調整・OG補正）", expanded=False):
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur["h_score"]), key=f"hs_{round_num}")
+            cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
         with col_m2:
-            cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur["a_score"]), key=f"as_{round_num}")
+            cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
 
         col_s1, col_s2 = st.columns(2)
         with col_s1:
-            sc_str = ", ".join([str(n) for n in cur["scorers"]])
+            sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
             scorers_input = st.text_input("得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
             cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
-            cur["assist"] = st.number_input("先制アシスト 背番号", min_value=0, max_value=99, value=int(cur["assist"]), key=f"asst_{round_num}")
-            cur["goal_time"] = st.number_input("先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur["goal_time"]), key=f"gt_{round_num}")
+            cur["assist"] = st.number_input("先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
+            cur["goal_time"] = st.number_input("先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
         with col_s2:
-            cur["passer"] = st.number_input("パス1位 背番号", min_value=1, max_value=99, value=int(cur["passer"]), key=f"pass_{round_num}")
-            cur["shots"] = st.number_input("チーム総シュート数", min_value=0, value=int(cur["shots"]), key=f"sh_{round_num}")
-            cur["poss"] = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=int(cur["poss"]), key=f"poss_{round_num}")
-            cur["day"] = st.number_input("試合開催日（日）", min_value=1, max_value=31, value=int(cur["day"]), key=f"day_{round_num}")
+            cur["passer"] = st.number_input("パス1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 6)), key=f"pass_{round_num}")
+            cur["shots"] = st.number_input("チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
+            cur["poss"] = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
+            cur["day"] = st.number_input("試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", 1)), key=f"day_{round_num}")
 
-    ars_score = cur["h_score"] if is_home else cur["a_score"]
-    opp_score = cur["a_score"] if is_home else cur["h_score"]
+    ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
+    opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
     gd = ars_score - opp_score
 
-    has_result = cur["is_finished"] or (cur["h_score"] > 0 or cur["a_score"] > 0)
+    has_result = cur.get("is_finished", False) or (cur.get("h_score", 0) > 0 or cur.get("a_score", 0) > 0)
     tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
     cost = tickets * 300
 
@@ -483,15 +488,15 @@ with tab1:
     <div class="match-card">
         <div style="display:flex; justify-content:space-between; font-size:12px; color:#94A3B8; margin-bottom:8px;">
             <span>第{round_num}節 / 38節</span>
-            <span style="color:{'#34D399' if cur['is_finished'] else '#F59E0B'}; font-weight:bold;">
-                {'FT (試合終了)' if cur['is_finished'] else 'キックオフ前'}
+            <span style="color:{'#34D399' if cur.get('is_finished', False) else '#F59E0B'}; font-weight:bold;">
+                {'FT (試合終了)' if cur.get('is_finished', False) else 'キックオフ前'}
             </span>
         </div>
         <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
             <div style="text-align:center; width:120px; font-weight:bold; font-size:15px;">{h_team}</div>
             <div style="text-align:center;">
                 <div style="font-size:36px; font-weight:900; letter-spacing:3px;">
-                    {f"{cur['h_score']} - {cur['a_score']}" if has_result else "VS"}
+                    {f"{cur.get('h_score', 0)} - {cur.get('a_score', 0)}" if has_result else "VS"}
                 </div>
                 <div style="font-size:11px; color:#94A3B8;">{'HOME' if is_home else 'AWAY'}</div>
             </div>
