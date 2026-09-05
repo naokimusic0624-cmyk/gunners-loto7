@@ -184,7 +184,7 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# ロト7 採番ロジック（確定新順序版：①〜⑩ + (-37)）
+# ロト7 採番ロジック（①〜⑩の厳密順序適用）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -263,31 +263,31 @@ def generate_ticket_1(stats):
             orig = f"({sc}日➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"⑦開催日: ({num:02d}日)")
 
-    # ⑧〜⑩ 差し替え枠・補填枠プール
-    replacement_pool = []
-    
-    # ⑧ 評価点最高GK/DF
-    best_def_num = stats.get("best_def_gk_num")
-    if best_def_num:
-        replacement_pool.append((best_def_num, f"⑧最高評価DF/GK(# {best_def_num})"))
+    # ⑧ 守備陣最上位 / GK（評価点トップDF、またはGKラヤ等）
+    best_def_gk_num = stats.get("best_def_gk_num")
+    if len(selected) < 7 and best_def_gk_num:
+        num = convert_to_loto_number(best_def_gk_num)
+        if num not in selected:
+            selected.append(num)
+            log_details.append(f"⑧最高評価DF/GK: ({best_def_gk_num}➔{num:02d})")
 
-    # ⑨ クラブ伝統枠
-    for t_num, t_label in [(14, "⑨クラブ伝統枠(アンリ#14)"), (13, "⑨クラブ伝統枠(優勝数#13)"), (18, "⑨クラブ伝統枠(創設年#18)"), (1, "⑨クラブ伝統枠(#01)")]:
-        replacement_pool.append((t_num, t_label))
+    # ⑨ クラブ伝統枠（14 ➔ 13 ➔ 18 ➔ 01）
+    tradition_list = [14, 13, 18, 1]
+    for t_num in tradition_list:
+        if len(selected) < 7:
+            num = convert_to_loto_number(t_num)
+            if num not in selected:
+                selected.append(num)
+                label_name = {14: "アンリ#14", 13: "優勝数#13", 18: "創設年#18", 1: "伝統#01"}.get(t_num, "")
+                log_details.append(f"⑨クラブ伝統枠({label_name}): ({num:02d})")
 
-    # ⑩ ファースト・サブ
-    replacement_pool.append((53, "⑩ファースト・サブ(ヌワネリ#53)"))
-    replacement_pool.append((30, "⑩ファースト・サブ(スターリング#30)"))
-    
-    pool_idx = 0
-    while len(selected) < 7 and pool_idx < len(replacement_pool):
-        raw_val, label = replacement_pool[pool_idx]
-        cand = convert_to_loto_number(raw_val)
-        if cand not in selected:
-            selected.append(cand)
-            orig = f"({raw_val}➔{cand:02d})" if raw_val > 37 else f"({cand:02d})"
-            log_details.append(f"{label}: {orig}")
-        pool_idx += 1
+    # ⑩ ファースト・サブ（最初に入った交代選手の背番号）
+    first_sub_num = stats.get("first_sub_num", 53)
+    if len(selected) < 7 and first_sub_num:
+        num = convert_to_loto_number(first_sub_num)
+        if num not in selected:
+            selected.append(num)
+            log_details.append(f"⑩ファースト・サブ: ({first_sub_num}➔{num:02d})")
 
     return sorted(selected), log_details
 
@@ -304,7 +304,7 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# Webページ解析（評価点最高DF/GK抽出対応）
+# Webページ解析（⑧〜⑩抽出の完全対応版）
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
     if not url_or_text:
@@ -360,9 +360,25 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         player_number_map = {}
         lineup = content.get("lineup", {})
         ars_side = "homeTeam" if ars_idx == 0 else "awayTeam"
-        ars_players_all = lineup.get(ars_side, {}).get("starters", []) + lineup.get(ars_side, {}).get("subs", [])
+        
+        starters = lineup.get(ars_side, {}).get("starters", [])
+        subs = lineup.get(ars_side, {}).get("subs", [])
+        ars_players_all = starters + subs
 
-        # 評価点が最も高いGK/DFを特定
+        for p in ars_players_all:
+            pid = str(p.get("id", ""))
+            shirt = p.get("shirt") or p.get("shirtNumber")
+            pname = p.get("name", "").lower()
+            pnum = int(shirt) if shirt else None
+            if not pnum:
+                for k, v in ARSENAL_SQUAD_NUMBERS.items():
+                    if k in pname:
+                        pnum = v
+                        break
+            if pnum and pid:
+                player_number_map[pid] = pnum
+
+        # ⑧ 評価点最高DF/GKの特定
         best_def_gk_num = 22 # デフォルトラヤ
         highest_rating = -1.0
 
@@ -373,19 +389,14 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             pos = str(p.get("position", "")).lower()
             role = str(p.get("role", "")).lower()
             
-            pnum = int(shirt) if shirt else None
-            if not pnum and pid in player_number_map:
-                pnum = player_number_map[pid]
+            pnum = int(shirt) if shirt else player_number_map.get(pid, 0)
             if not pnum:
                 for k, v in ARSENAL_SQUAD_NUMBERS.items():
                     if k in pname:
                         pnum = v
                         break
 
-            if pnum:
-                player_number_map[pid] = pnum
-
-            # 評価点取得
+            # 評価点
             rating = 0.0
             rc = p.get("rating", {})
             if isinstance(rc, dict):
@@ -396,14 +407,32 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             elif isinstance(rc, (int, float)):
                 rating = float(rc)
 
-            # ポジション判定（GKまたはDF、あるいはバックラインの選手）
-            is_def_or_gk = ("gk" in pos or "def" in pos or "keeper" in role or "defender" in role or 
-                            pnum in [2, 3, 4, 6, 12, 17, 22, 33, 49])
+            # GKまたはDFの判定
+            is_def_gk = ("gk" in pos or "def" in pos or "keeper" in role or "defender" in role or 
+                         pnum in [2, 3, 4, 6, 12, 17, 22, 33])
 
-            if is_def_or_gk and pnum:
-                if rating > highest_rating:
+            if is_def_gk and pnum:
+                if rating >= highest_rating:
                     highest_rating = rating
                     best_def_gk_num = pnum
+
+        # ⑩ ファースト・サブの特定（最初に入った交代選手）
+        first_sub_num = 53 # デフォルト
+        # サブ選手の中でタイムスタンプやリストの最初をファーストサブとする
+        if subs and len(subs) > 0:
+            first_sub_p = subs[0]
+            fs_id = str(first_sub_p.get("id", ""))
+            fs_shirt = first_sub_p.get("shirt") or first_sub_p.get("shirtNumber")
+            fs_name = first_sub_p.get("name", "").lower()
+            if fs_shirt:
+                first_sub_num = int(fs_shirt)
+            elif fs_id in player_number_map:
+                first_sub_num = player_number_map[fs_id]
+            else:
+                for k, v in ARSENAL_SQUAD_NUMBERS.items():
+                    if k in fs_name:
+                        first_sub_num = v
+                        break
 
         top_passer_number = 49
 
@@ -470,7 +499,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "passer": top_passer_number,
             "shots": shots,
             "possession": possession,
-            "best_def_gk_num": best_def_gk_num
+            "best_def_gk_num": best_def_gk_num,
+            "first_sub_num": first_sub_num
         }, None
 
     except Exception as e:
@@ -537,7 +567,8 @@ with tab1:
                 "shots": 15,
                 "poss": 55,
                 "day": m.get("day", 1),
-                "best_def_gk_num": 22
+                "best_def_gk_num": 22,
+                "first_sub_num": 53
             }
 
     cur = st.session_state[state_key]
@@ -559,7 +590,7 @@ with tab1:
 
     if sync_clicked:
         if user_url_input:
-            with st.spinner("FotMobページからスタッツと評価点を抽出中..."):
+            with st.spinner("FotMobページから全スタッツ・評価点を抽出中..."):
                 fetched, err = fetch_from_fotmob_page(user_url_input, is_home)
                 if fetched:
                     cur["match_id"] = fetched["match_id"]
@@ -573,9 +604,10 @@ with tab1:
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
                     cur["best_def_gk_num"] = fetched["best_def_gk_num"]
+                    cur["first_sub_num"] = fetched["first_sub_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success(f"スタッツを抽出し、最高評価DF/GK（背番号 {fetched['best_def_gk_num']}）を反映・保存しました！")
+                    st.success("スタッツ、最高評価DF/GK、ファーストサブを正常抽出・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
@@ -722,7 +754,7 @@ with tab2:
 
     st.markdown(f"""
     <div class="match-card">
-        <div style="font-size:12px; color:#94A3B8;">2026-27 SEASON OVERVIEW (収支概要)</div>
+        <div style="font-size:12px; color:#94A3B8; margin-2026 SEASON OVERVIEW (収支概要)</div>
         <div style="font-size:28px; font-weight:900; color:{'#34D399' if net_balance >= 0 else '#F87171'}; margin:6px 0;">
             {'+' if net_balance > 0 else ''}{net_balance:,} 円
         </div>
