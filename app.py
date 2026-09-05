@@ -98,9 +98,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 永続データ管理（収支用）
+# 永続データ管理（試合データ保存用 & 収支用）
 # ==========================================
+MATCH_STORAGE_FILE = "saved_matches.json"
 HISTORY_FILE = "match_history.json"
+
+def load_saved_matches():
+    if os.path.exists(MATCH_STORAGE_FILE):
+        try:
+            with open(MATCH_STORAGE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_match_data_to_file(round_num, data):
+    all_data = load_saved_matches()
+    all_data[str(round_num)] = data
+    with open(MATCH_STORAGE_FILE, "w", encoding="utf-8") as f:
+        json.dump(all_data, f, ensure_ascii=False, indent=2)
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -171,7 +187,6 @@ ARSENAL_SQUAD_NUMBERS = {
 # ロト7 採番ロジック（厳密定義版）
 # ==========================================
 def convert_to_loto_number(val):
-    """38以上の数値を37引き（n - 37）で1〜37に正規化"""
     try:
         n = int(val)
         while n > 37:
@@ -181,21 +196,9 @@ def convert_to_loto_number(val):
         return 1
 
 def generate_ticket_1(stats):
-    """
-    【明確な優先順位に基づく採番】
-    1. 得点者背番号（全員）
-    2. 先制アシスト背番号
-    3. 先制ゴール時間（分）
-    4. パス成功数1位 背番号
-    5. 総シュート数
-    6. ボール支配率（%）
-    7. 試合開催日（日）
-    ※重複した場合は順次スキップして7個を確保
-    """
     selected = []
     log_details = []
 
-    # 1. 得点者
     for sc in stats.get("scorers", []):
         num = convert_to_loto_number(sc)
         if num not in selected and len(selected) < 7:
@@ -203,7 +206,6 @@ def generate_ticket_1(stats):
             orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"得点者: {orig}")
 
-    # 2. 先制アシスト
     if len(selected) < 7 and stats.get("assist"):
         sc = stats["assist"]
         num = convert_to_loto_number(sc)
@@ -212,7 +214,6 @@ def generate_ticket_1(stats):
             orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"先制アシスト: {orig}")
 
-    # 3. 先制ゴール時間
     if len(selected) < 7 and stats.get("goal_time"):
         sc = stats["goal_time"]
         num = convert_to_loto_number(sc)
@@ -221,7 +222,6 @@ def generate_ticket_1(stats):
             orig = f"({sc}分➔{num:02d})" if sc > 37 else f"({num:02d}分)"
             log_details.append(f"ゴール時間: {orig}")
 
-    # 4. パス1位
     if len(selected) < 7 and stats.get("passer"):
         sc = stats["passer"]
         num = convert_to_loto_number(sc)
@@ -230,7 +230,6 @@ def generate_ticket_1(stats):
             orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"パス1位: {orig}")
 
-    # 5. 総シュート数
     if len(selected) < 7 and stats.get("shots"):
         sc = stats["shots"]
         num = convert_to_loto_number(sc)
@@ -239,7 +238,6 @@ def generate_ticket_1(stats):
             orig = f"({sc}本➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"総シュート数: {orig}")
 
-    # 6. ボール支配率
     if len(selected) < 7 and stats.get("poss"):
         sc = stats["poss"]
         num = convert_to_loto_number(sc)
@@ -248,7 +246,6 @@ def generate_ticket_1(stats):
             orig = f"({sc}%➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"支配率: {orig}")
 
-    # 7. 開催日
     if len(selected) < 7 and stats.get("day"):
         sc = stats["day"]
         num = convert_to_loto_number(sc)
@@ -256,7 +253,6 @@ def generate_ticket_1(stats):
             selected.append(num)
             log_details.append(f"開催日: ({num:02d}日)")
 
-    # 予備枠（重複等で7個に満たない場合のみ補充）
     fallback_pool = [2, 14, 18, 1, 19]
     fb_idx = 0
     while len(selected) < 7 and fb_idx < len(fallback_pool):
@@ -322,15 +318,25 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         header = page_props.get("header", {})
         general = page_props.get("general", {})
 
+        # チーム名判定（どちらがアーセナルか判定）
         teams = header.get("teams", [])
-        h_sc = teams[0].get("score", 0) if len(teams) >= 1 else 0
-        a_sc = teams[1].get("score", 0) if len(teams) >= 2 else 0
+        ars_idx = 0
+        if len(teams) >= 2:
+            t0_name = teams[0].get("name", "").lower()
+            t1_name = teams[1].get("name", "").lower()
+            if "arsenal" in t1_name:
+                ars_idx = 1
+            h_sc = teams[0].get("score", 0)
+            a_sc = teams[1].get("score", 0)
+        else:
+            h_sc, a_sc = 0, 0
         is_finished = header.get("status", {}).get("finished", False)
 
+        # 選手背番号マップ
         player_number_map = {}
         lineup = content.get("lineup", {})
-        ars_side = "homeTeam" if is_home else "awayTeam"
-        ars_players_list = lineup.get(ars_side, {}).get("starters", []) + lineup.get(ars_side, {}).get("subs", [])
+        ars_key = "homeTeam" if ars_idx == 0 else "awayTeam"
+        ars_players_list = lineup.get(ars_key, {}).get("starters", []) + lineup.get(ars_key, {}).get("subs", [])
 
         for side in ["homeTeam", "awayTeam"]:
             team_lineup = lineup.get(side, {})
@@ -340,8 +346,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                 if pid and shirt:
                     player_number_map[pid] = int(shirt)
 
-        # パス1位判定（正確なパス）
-        top_passer_number = 49
+        # パス1位判定（アーセナル選手リストから正確なパス成功数を走査）
+        top_passer_number = 49  # デフォルトは49（スケリー）
         max_accurate_passes = -1
 
         for p in ars_players_list:
@@ -382,6 +388,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                 max_accurate_passes = p_passes
                 top_passer_number = pnum
 
+        # ゴール・アシスト
         events = content.get("matchFacts", {}).get("events", {}).get("events", [])
         scorers = []
         first_assist = None
@@ -390,7 +397,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         for ev in events:
             if ev.get("type") in ["Goal", "goal"]:
                 ev_is_home = ev.get("isHome", True)
-                if (is_home and ev_is_home) or (not is_home and not ev_is_home):
+                # アーセナルの得点かを判定
+                if (ars_idx == 0 and ev_is_home) or (ars_idx == 1 and not ev_is_home):
                     pid = str(ev.get("playerId") or ev.get("player", {}).get("id", ""))
                     pname = ev.get("player", {}).get("name", "").lower()
                     num = player_number_map.get(pid)
@@ -415,10 +423,10 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                                     first_assist = v
                                     break
 
-        shots = 15
-        possession = 55
+        # シュート数・支配率
+        shots = 20
+        possession = 64
         stats_periods = content.get("stats", {}).get("Periods", {}).get("All", {}).get("stats", [])
-        ars_idx = 0 if is_home else 1
 
         for sec in stats_periods:
             for item in sec.get("stats", []):
@@ -441,10 +449,10 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "h_score": int(h_sc) if h_sc is not None else 0,
             "a_score": int(a_sc) if a_sc is not None else 0,
             "is_finished": is_finished,
-            "scorers": scorers if scorers else [7],
-            "assist": first_assist or 8,
-            "goal_time": first_time or 20,
-            "passer": top_passer_number,
+            "scorers": scorers if scorers else [29, 7, 8],
+            "assist": first_assist or 33,
+            "goal_time": first_time or 15,
+            "passer": top_passer_number if top_passer_number > 0 else 49,
             "shots": shots,
             "possession": possession
         }, None
@@ -455,6 +463,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
 # ==========================================
 # メイン画面 UI
 # ==========================================
+saved_matches = load_saved_matches()
+
 st.markdown("""
 <div class="arsenal-header">
     <div style="display:flex; align-items:center; gap:10px;">
@@ -473,8 +483,13 @@ with tab1:
         r = item["round"]
         opp = item["opp"]
         ha = item["ha"]
-        txt = f"アーセナル vs {opp}" if ha == "H" else f"{opp} vs アーセナル"
-        labels.append(f"第{r}節: {txt} ({ha})")
+        r_str = str(r)
+        if r_str in saved_matches:
+            saved_m = saved_matches[r_str]
+            labels.append(f"第{r}節: アーセナル {saved_m.get('h_score', 0)} - {saved_m.get('a_score', 0)} {opp} (保存済)")
+        else:
+            txt = f"アーセナル vs {opp}" if ha == "H" else f"{opp} vs アーセナル"
+            labels.append(f"第{r}節: {txt} ({ha})")
 
     selected_idx = st.selectbox(
         "📅 試合を選択してください（第1節〜第38節）",
@@ -487,26 +502,32 @@ with tab1:
     opp_name = m["opp"]
     ha = m["ha"]
     is_home = (ha == "H")
+    r_key_str = str(round_num)
 
     state_key = f"match_data_{round_num}"
     if state_key not in st.session_state or not isinstance(st.session_state[state_key], dict):
-        st.session_state[state_key] = {}
+        # 保存済みデータがあれば自動ロード
+        if r_key_str in saved_matches:
+            st.session_state[state_key] = saved_matches[r_key_str].copy()
+        else:
+            st.session_state[state_key] = {
+                "match_id": "",
+                "h_score": 0,
+                "a_score": 0,
+                "is_finished": False,
+                "scorers": [7],
+                "assist": 8,
+                "goal_time": 20,
+                "passer": 49,
+                "shots": 15,
+                "poss": 55,
+                "day": m.get("day", 1)
+            }
 
     cur = st.session_state[state_key]
-    cur.setdefault("match_id", "")
-    cur.setdefault("h_score", 0)
-    cur.setdefault("a_score", 0)
-    cur.setdefault("is_finished", False)
-    cur.setdefault("scorers", [7])
-    cur.setdefault("assist", 8)
-    cur.setdefault("goal_time", 20)
-    cur.setdefault("passer", 49)
-    cur.setdefault("shots", 15)
-    cur.setdefault("poss", 55)
-    cur.setdefault("day", m.get("day", 1))
 
     # FotMobスタッツ連携バー
-    st.markdown("**⚡ FotMobスタッツ連携（Webページ直接解析）**")
+    st.markdown("**⚡ FotMobスタッツ連携（1度保存すれば次回以降リンク不要）**")
     col_u1, col_u2 = st.columns([3, 1])
     with col_u1:
         user_url_input = st.text_input(
@@ -534,7 +555,10 @@ with tab1:
                     cur["passer"] = fetched["passer"]
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
-                    st.success(f"スコア {fetched['h_score']}-{fetched['a_score']}、得点者、パス1位（背番号{fetched['passer']}）を自動反映しました！")
+                    
+                    # 取得と同時に内部ファイルへ自動保存
+                    save_match_data_to_file(round_num, cur)
+                    st.success(f"スコア {fetched['h_score']}-{fetched['a_score']}、得点者、パス1位（背番号{fetched['passer']}）を反映・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
@@ -640,22 +664,31 @@ with tab1:
         st.markdown("**📋 購入用テキスト（右上のアイコンで1タップコピー）**")
         st.code(copy_text, language="text")
 
-        if st.button("💾 この試合を購入履歴に保存", use_container_width=True):
-            history = load_history()
-            new_record = {
-                "round": round_num,
-                "opponent": f"{opp_name} ({ha})",
-                "score": f"{ars_score}-{opp_score}",
-                "tickets": tickets,
-                "cost": cost,
-                "ticket_1": t1,
-                "ticket_2": t2_nums if tickets >= 2 else [],
-                "hit_amount": 0,
-                "status": "未抽せん"
-            }
-            history.insert(0, new_record)
-            save_history(history)
-            st.success(f"第{round_num}節（vs {opp_name}）の購入データを保存しました！")
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            if st.button("💾 この節の試合データ・番号を保存（確定）", use_container_width=True):
+                cur["is_finished"] = True
+                save_match_data_to_file(round_num, cur)
+                st.success(f"第{round_num}節のデータを保存しました！今後はリンクを貼らずに復元されます。")
+                st.rerun()
+
+        with col_b2:
+            if st.button("📊 収支管理に保存", use_container_width=True):
+                history = load_history()
+                new_record = {
+                    "round": round_num,
+                    "opponent": f"{opp_name} ({ha})",
+                    "score": f"{ars_score}-{opp_score}",
+                    "tickets": tickets,
+                    "cost": cost,
+                    "ticket_1": t1,
+                    "ticket_2": t2_nums if tickets >= 2 else [],
+                    "hit_amount": 0,
+                    "status": "未抽せん"
+                }
+                history.insert(0, new_record)
+                save_history(history)
+                st.success(f"第{round_num}節（vs {opp_name}）の購入データを収支管理に保存しました！")
     else:
         if has_result:
             st.info("引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
