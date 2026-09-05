@@ -171,17 +171,15 @@ ARSENAL_SQUAD_NUMBERS = {
 # Webページ埋め込みデータ直接抽出パーサー
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
-    """WebページのHTMLから埋め込みJSON（__NEXT_DATA__）を直接解析"""
+    """WebページのHTMLから埋め込みJSON（__NEXT_DATA__）を解析し、スコア・イベント・パス1位を自動抽出"""
     if not url_or_text:
         return None, "URLが入力されていません"
 
-    # URLクリーンアップ（ハッシュなどを除去）
     clean_url = url_or_text.strip()
     m_url = re.search(r'(https?://[^\s]+)', clean_url)
     if m_url:
         clean_url = m_url.group(1).split('#')[0]
     else:
-        # 数字のみの場合は直接API URLを構成
         m_id = re.search(r'(\d{6,10})', clean_url)
         if m_id:
             clean_url = f"https://www.fotmob.com/matches/{m_id.group(1)}"
@@ -201,7 +199,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             return None, f"ページ取得エラー (HTTP {res.status_code})"
 
         html = res.text
-        # __NEXT_DATA__ スクリプトタグを抽出
         json_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
         if not json_match:
             return None, "試合データタグが見つかりませんでした"
@@ -209,24 +206,22 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         next_data = json.loads(json_match.group(1))
         page_props = next_data.get("props", {}).get("pageProps", {})
         
-        # 試合データブロックを探索
         content = page_props.get("content", {})
         header = page_props.get("header", {})
         general = page_props.get("general", {})
 
         # スコア取得
         teams = header.get("teams", [])
-        if len(teams) >= 2:
-            h_sc = teams[0].get("score", 0)
-            a_sc = teams[1].get("score", 0)
-        else:
-            h_sc = 0
-            a_sc = 0
+        h_sc = teams[0].get("score", 0) if len(teams) >= 1 else 0
+        a_sc = teams[1].get("score", 0) if len(teams) >= 2 else 0
         is_finished = header.get("status", {}).get("finished", False)
 
-        # 選手背番号マップ作成
+        # 選手背番号マップ作成 & アーセナル所属選手の特定
         player_number_map = {}
         lineup = content.get("lineup", {})
+        ars_side = "homeTeam" if is_home else "awayTeam"
+        ars_players_list = lineup.get(ars_side, {}).get("starters", []) + lineup.get(ars_side, {}).get("subs", [])
+
         for side in ["homeTeam", "awayTeam"]:
             team_lineup = lineup.get(side, {})
             for p in team_lineup.get("starters", []) + team_lineup.get("subs", []):
@@ -235,7 +230,50 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                 if pid and shirt:
                     player_number_map[pid] = int(shirt)
 
-        # イベント（ゴール・アシスト）
+        # パス数1位の自動判定（正確なパス / Accurate Passes）
+        top_passer_number = 49  # フォールバック
+        max_accurate_passes = -1
+
+        for p in ars_players_list:
+            pid = str(p.get("id", ""))
+            pname = p.get("name", "").lower()
+            pnum = player_number_map.get(pid)
+            if not pnum:
+                for k, v in ARSENAL_SQUAD_NUMBERS.items():
+                    if k in pname:
+                        pnum = v
+                        break
+
+            # 選手のスタッツ辞書/リストを走査してパス成功数を特定
+            p_passes = 0
+            p_stats = p.get("stats", [])
+            if isinstance(p_stats, list):
+                for cat in p_stats:
+                    cat_dict = cat.get("stats", {})
+                    if isinstance(cat_dict, dict):
+                        for stat_k, stat_v in cat_dict.items():
+                            if "accurate pass" in stat_k.lower() or "accurate_pass" in stat_k.lower() or "正確なパス" in stat_k:
+                                if isinstance(stat_v, dict):
+                                    p_passes = int(stat_v.get("value", 0))
+                                elif isinstance(stat_v, (int, float)):
+                                    p_passes = int(stat_v)
+                                elif isinstance(stat_v, str) and "/" in stat_v:
+                                    p_passes = int(stat_v.split("/")[0].strip())
+            elif isinstance(p_stats, dict):
+                for stat_k, stat_v in p_stats.items():
+                    if "accurate" in stat_k.lower() and "pass" in stat_k.lower():
+                        if isinstance(stat_v, dict):
+                            p_passes = int(stat_v.get("value", 0))
+                        elif isinstance(stat_v, (int, float)):
+                            p_passes = int(stat_v)
+                        elif isinstance(stat_v, str) and "/" in stat_v:
+                            p_passes = int(stat_v.split("/")[0].strip())
+
+            if p_passes > max_accurate_passes and pnum:
+                max_accurate_passes = p_passes
+                top_passer_number = pnum
+
+        # ゴール・アシスト・時間
         events = content.get("matchFacts", {}).get("events", {}).get("events", [])
         scorers = []
         first_assist = None
@@ -289,7 +327,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                         if s_str.isdigit():
                             shots = int(s_str)
 
-        match_id_found = str(general.get("matchId") or re.search(r'(\d{6,10})', clean_url).group(1) if re.search(r'(\d{6,10})', clean_url) else "")
+        match_id_found = str(general.get("matchId") or (re.search(r'(\d{6,10})', clean_url).group(1) if re.search(r'(\d{6,10})', clean_url) else ""))
 
         return {
             "match_id": match_id_found,
@@ -299,6 +337,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "scorers": scorers if scorers else [7],
             "assist": first_assist or 8,
             "goal_time": first_time or 20,
+            "passer": top_passer_number,
             "shots": shots,
             "possession": possession
         }, None
@@ -435,12 +474,12 @@ with tab1:
     cur.setdefault("scorers", [7])
     cur.setdefault("assist", 8)
     cur.setdefault("goal_time", 20)
-    cur.setdefault("passer", 6)
+    cur.setdefault("passer", 49)
     cur.setdefault("shots", 15)
     cur.setdefault("poss", 55)
     cur.setdefault("day", m.get("day", 1))
 
-    # FotMobスタッツ連携（Web直接解析）
+    # FotMobスタッツ連携バー
     st.markdown("**⚡ FotMobスタッツ連携（Webページ直接解析）**")
     col_u1, col_u2 = st.columns([3, 1])
     with col_u1:
@@ -466,9 +505,10 @@ with tab1:
                     cur["scorers"] = fetched["scorers"]
                     cur["assist"] = fetched["assist"]
                     cur["goal_time"] = fetched["goal_time"]
+                    cur["passer"] = fetched["passer"]
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
-                    st.success(f"スコア {fetched['h_score']}-{fetched['a_score']} と詳細スタッツを自動反映しました！")
+                    st.success(f"スコア {fetched['h_score']}-{fetched['a_score']}、得点者、パス1位（背番号{fetched['passer']}）を自動反映しました！")
                     st.rerun()
                 else:
                     st.error(err)
@@ -494,7 +534,7 @@ with tab1:
             cur["assist"] = st.number_input("先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
             cur["goal_time"] = st.number_input("先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
         with col_s2:
-            cur["passer"] = st.number_input("パス1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 6)), key=f"pass_{round_num}")
+            cur["passer"] = st.number_input("パス1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
             cur["shots"] = st.number_input("チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
             cur["poss"] = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
             cur["day"] = st.number_input("試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", 1)), key=f"day_{round_num}")
