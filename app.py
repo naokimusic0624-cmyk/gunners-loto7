@@ -187,7 +187,7 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# ロト7 採番ロジック（①〜⑩ 厳密入力直結＆完全順次判定）
+# ロト7 採番ロジック（①〜⑩ 完全順次判定・重複排除）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -203,7 +203,7 @@ def generate_ticket_1(stats):
     log_details = []
 
     def try_add(val, label):
-        if len(selected) >= 7:
+        if len(selected) >= 7 or val is None:
             return False
         num = convert_to_loto_number(val)
         if num not in selected:
@@ -244,33 +244,24 @@ def generate_ticket_1(stats):
     if stats.get("day") is not None:
         try_add(stats["day"], "⑦開催日")
 
-    # ⑧ 守備陣最上位 / GK（評価点トップDF/GK、重複時は次点の選手を順次探索）
+    # ⑧ 守備陣最上位 / GK
     def_candidates = stats.get("def_gk_candidates", [2, 4, 6, 12, 1])
     for d_num in def_candidates:
         if len(selected) >= 7:
             break
-        num = convert_to_loto_number(d_num)
-        if num not in selected:
-            selected.append(num)
-            orig = f"({d_num}➔{num:02d})" if d_num > 37 else f"({num:02d})"
-            log_details.append(f"⑧最高評価DF/GK: {orig}")
-            break
+        try_add(d_num, "⑧最高評価DF/GK")
 
     # ⑨ クラブ伝統枠（14 ➔ 13 ➔ 18 ➔ 01）
-    tradition_list = [14, 13, 18, 1]
+    tradition_list = stats.get("tradition_candidates", [14, 13, 18, 1])
     for t_num in tradition_list:
         if len(selected) >= 7:
             break
-        num = convert_to_loto_number(t_num)
-        if num not in selected:
-            selected.append(num)
-            label_name = {14: "アンリ/ギェケレシュ#14", 13: "ケパ#13", 18: "創設年#18", 1: "ラヤ#01"}.get(t_num, "")
-            log_details.append(f"⑨クラブ伝統枠({label_name}): ({num:02d})")
+        label_name = {14: "アンリ/ギェケレシュ#14", 13: "ケパ#13", 18: "創設年#18", 1: "ラヤ#01"}.get(t_num, f"#{t_num}")
+        try_add(t_num, f"⑨クラブ伝統枠({label_name})")
 
     # ⑩ ファースト・サブ
-    first_sub_num = stats.get("first_sub_num", 56)
-    if len(selected) < 7 and first_sub_num is not None:
-        try_add(first_sub_num, "⑩ファースト・サブ")
+    if stats.get("first_sub") is not None:
+        try_add(stats["first_sub"], "⑩ファースト・サブ")
 
     return sorted(selected), log_details
 
@@ -491,7 +482,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "shots": shots,
             "possession": possession,
             "def_gk_candidates": def_candidates,
-            "first_sub_num": first_sub_num
+            "first_sub": first_sub_num
         }, None
 
     except Exception as e:
@@ -559,7 +550,8 @@ with tab1:
                 "poss": 55,
                 "day": m.get("day", 1),
                 "def_gk_candidates": [33, 2, 4, 6, 1],
-                "first_sub_num": 56
+                "tradition_candidates": [14, 13, 18, 1],
+                "first_sub": 56
             }
 
     cur = st.session_state[state_key]
@@ -595,7 +587,7 @@ with tab1:
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
                     cur["def_gk_candidates"] = fetched["def_gk_candidates"]
-                    cur["first_sub_num"] = fetched["first_sub_num"]
+                    cur["first_sub"] = fetched["first_sub"]
                     
                     save_match_data_to_file(round_num, cur)
                     st.success("スタッツを正常抽出・保存しました！")
@@ -605,32 +597,6 @@ with tab1:
         else:
             st.warning("FotMobの試合URLを入力してください。")
 
-    h_team = "アーセナルFC" if is_home else opp_name
-    a_team = opp_name if is_home else "アーセナルFC"
-
-    with st.expander("📝 スコア & スタッツ詳細（手動補正・OG対応）", expanded=True):
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
-        with col_m2:
-            cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
-
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
-            scorers_input = st.text_input("得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
-            cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
-            cur["assist"] = st.number_input("先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
-            cur["goal_time"] = st.number_input("先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
-        with col_s2:
-            cur["passer"] = st.number_input("パス1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
-            cur["shots"] = st.number_input("チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
-            cur["poss"] = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
-            cur["day"] = st.number_input("試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", 1)), key=f"day_{round_num}")
-
-    # 手動入力の値をスタッツ辞書に直結
-    cur["day"] = int(cur.get("day", m.get("day", 1)))
-    
     ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
     opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
     gd = ars_score - opp_score
@@ -638,6 +604,50 @@ with tab1:
     has_result = cur.get("is_finished", False) or (cur.get("h_score", 0) > 0 or cur.get("a_score", 0) > 0)
     tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
     cost = tickets * 300
+
+    # ==========================================
+    # 📝 スコア & スタッツ詳細（①〜⑩ 全手動補正 & 再判定ボタン）
+    # ==========================================
+    with st.expander("📝 スコア & スタッツ詳細（①〜⑩ 手動補正・OG対応）", expanded=True):
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
+        with col_m2:
+            cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
+
+        st.markdown("---")
+        st.caption("👇 ①〜⑩ の採番項目データを個別に手動修正できます")
+        
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
+            scorers_input = st.text_input("① 得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
+            cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
+            
+            cur["assist"] = st.number_input("② 先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
+            cur["goal_time"] = st.number_input("③ 先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
+            cur["passer"] = st.number_input("④ パス成功数1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
+            cur["shots"] = st.number_input("⑤ チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
+
+        with col_s2:
+            cur["poss"] = st.number_input("⑥ ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
+            cur["day"] = st.number_input("⑦ 試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", m.get("day", 1))), key=f"day_{round_num}")
+            
+            def_cands_str = ", ".join([str(n) for n in cur.get("def_gk_candidates", [2, 4, 6, 12, 1])])
+            def_input = st.text_input("⑧ 最高評価DF/GK候補（カンマ区切り優先順）", value=def_cands_str, key=f"def_{round_num}")
+            cur["def_gk_candidates"] = [int(s.strip()) for s in def_input.split(",") if s.strip().isdigit()]
+
+            trad_str = ", ".join([str(n) for n in cur.get("tradition_candidates", [14, 13, 18, 1])])
+            trad_input = st.text_input("⑨ クラブ伝統枠（カンマ区切り順序）", value=trad_str, key=f"trad_{round_num}")
+            cur["tradition_candidates"] = [int(s.strip()) for s in trad_input.split(",") if s.strip().isdigit()]
+
+            cur["first_sub"] = st.number_input("⑩ ファースト・サブ 背番号", min_value=1, max_value=99, value=int(cur.get("first_sub", 56)), key=f"sub_{round_num}")
+
+        # 再判定ボタン
+        if st.button("🔄 番号を再判定する", use_container_width=True):
+            save_match_data_to_file(round_num, cur)
+            st.success("手動修正を反映して再判定しました！")
+            st.rerun()
 
     st.markdown(f"""
     <div class="match-card">
@@ -783,7 +793,7 @@ with tab2:
                         save_history(history)
                         st.rerun()
     else:
-        st.caption("保存された購入履歴はありません。")
+        st.caption("N/A")
 
     if st.button("🗑️ 履歴データをリセット"):
         save_history([])
