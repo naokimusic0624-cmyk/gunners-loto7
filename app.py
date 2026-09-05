@@ -260,19 +260,19 @@ def generate_ticket_1(stats):
         num = convert_to_loto_number(sc)
         if num not in selected:
             selected.append(num)
+            orig = f"({sc}日➔{num:02d})" if sc > 37 else f"({num:02d})"
             log_details.append(f"⑦開催日: ({num:02d}日)")
 
-    # ⑧〜⑩ 差し替え枠・補填枠プール（出場メンバー連動型）
-    active_lineup = stats.get("lineup_numbers", [22, 4, 6, 12, 33, 53]) # デフォルトはラヤ(#22), ホワイト(#4), ガブリエウ(#6)等
+    # ⑧〜⑩ 差し替え枠・補填枠プール
     replacement_pool = []
     
-    # ⑧ 守備陣・GK（実際に出場しているメンバーの背番号を優先）
-    for def_num in active_lineup:
-        replacement_pool.append((def_num, f"⑧守備陣最上位/GK(# {def_num})"))
-    
+    # ⑧ 評価点最高GK/DF
+    best_def_num = stats.get("best_def_gk_num")
+    if best_def_num:
+        replacement_pool.append((best_def_num, f"⑧最高評価DF/GK(# {best_def_num})"))
+
     # ⑨ クラブ伝統枠
-    tradition_nums = [(14, "⑨クラブ伝統枠(アンリ#14)"), (13, "⑨クラブ伝統枠(優勝数#13)"), (18, "⑨クラブ伝統枠(創設年#18)"), (1, "⑨クラブ伝統枠(#01)")]
-    for t_num, t_label in tradition_nums:
+    for t_num, t_label in [(14, "⑨クラブ伝統枠(アンリ#14)"), (13, "⑨クラブ伝統枠(優勝数#13)"), (18, "⑨クラブ伝統枠(創設年#18)"), (1, "⑨クラブ伝統枠(#01)")]:
         replacement_pool.append((t_num, t_label))
 
     # ⑩ ファースト・サブ
@@ -304,7 +304,7 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# Webページ解析（直接パーサー）
+# Webページ解析（評価点最高DF/GK抽出対応）
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
     if not url_or_text:
@@ -360,20 +360,50 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         player_number_map = {}
         lineup = content.get("lineup", {})
         ars_side = "homeTeam" if ars_idx == 0 else "awayTeam"
-        ars_starters = lineup.get(ars_side, {}).get("starters", [])
-        
-        active_lineup_nums = []
-        for p in ars_starters:
+        ars_players_all = lineup.get(ars_side, {}).get("starters", []) + lineup.get(ars_side, {}).get("subs", [])
+
+        # 評価点が最も高いGK/DFを特定
+        best_def_gk_num = 22 # デフォルトラヤ
+        highest_rating = -1.0
+
+        for p in ars_players_all:
             pid = str(p.get("id", ""))
             shirt = p.get("shirt") or p.get("shirtNumber")
-            if pid and shirt:
-                player_number_map[pid] = int(shirt)
-                active_lineup_nums.append(int(shirt))
+            pname = p.get("name", "").lower()
+            pos = str(p.get("position", "")).lower()
+            role = str(p.get("role", "")).lower()
+            
+            pnum = int(shirt) if shirt else None
+            if not pnum and pid in player_number_map:
+                pnum = player_number_map[pid]
+            if not pnum:
+                for k, v in ARSENAL_SQUAD_NUMBERS.items():
+                    if k in pname:
+                        pnum = v
+                        break
 
-        # スタメンにいない場合も考慮してDF/GK系を補強
-        for default_num in [22, 4, 6, 12, 33, 49]:
-            if default_num not in active_lineup_nums:
-                active_lineup_nums.append(default_num)
+            if pnum:
+                player_number_map[pid] = pnum
+
+            # 評価点取得
+            rating = 0.0
+            rc = p.get("rating", {})
+            if isinstance(rc, dict):
+                try:
+                    rating = float(rc.get("num", 0))
+                except:
+                    pass
+            elif isinstance(rc, (int, float)):
+                rating = float(rc)
+
+            # ポジション判定（GKまたはDF、あるいはバックラインの選手）
+            is_def_or_gk = ("gk" in pos or "def" in pos or "keeper" in role or "defender" in role or 
+                            pnum in [2, 3, 4, 6, 12, 17, 22, 33, 49])
+
+            if is_def_or_gk and pnum:
+                if rating > highest_rating:
+                    highest_rating = rating
+                    best_def_gk_num = pnum
 
         top_passer_number = 49
 
@@ -440,7 +470,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "passer": top_passer_number,
             "shots": shots,
             "possession": possession,
-            "lineup_numbers": active_lineup_nums
+            "best_def_gk_num": best_def_gk_num
         }, None
 
     except Exception as e:
@@ -507,7 +537,7 @@ with tab1:
                 "shots": 15,
                 "poss": 55,
                 "day": m.get("day", 1),
-                "lineup_numbers": [22, 4, 6, 12, 33]
+                "best_def_gk_num": 22
             }
 
     cur = st.session_state[state_key]
@@ -529,7 +559,7 @@ with tab1:
 
     if sync_clicked:
         if user_url_input:
-            with st.spinner("FotMobページからスタッツを抽出中..."):
+            with st.spinner("FotMobページからスタッツと評価点を抽出中..."):
                 fetched, err = fetch_from_fotmob_page(user_url_input, is_home)
                 if fetched:
                     cur["match_id"] = fetched["match_id"]
@@ -542,10 +572,10 @@ with tab1:
                     cur["passer"] = 49
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
-                    cur["lineup_numbers"] = fetched["lineup_numbers"]
+                    cur["best_def_gk_num"] = fetched["best_def_gk_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("スタッツと出場メンバーを抽出し、保存しました！")
+                    st.success(f"スタッツを抽出し、最高評価DF/GK（背番号 {fetched['best_def_gk_num']}）を反映・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
