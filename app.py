@@ -1,13 +1,15 @@
 import streamlit as st
+import requests
 import json
 import os
 import random
+from datetime import datetime
 
 # ==========================================
 # ページ基本設定 & カスタムCSS
 # ==========================================
 st.set_page_config(
-    page_title="Gunners Loto 7 (2026-27)",
+    page_title="Gunners Loto 7 (Official Live)",
     page_icon="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -96,7 +98,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 永続データ管理（収支・履歴用 JSON）
+# 永続データ管理
 # ==========================================
 DATA_FILE = "match_history.json"
 
@@ -114,81 +116,81 @@ def save_history(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 # ==========================================
-# チームロゴ対応マップ
+# ① FotMob公式サーバーから現在シーズンの全日程を動的取得
 # ==========================================
-TEAM_LOGOS = {
-    "arsenal": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png",
-    "coventry": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/KHpmY4tIwqiutl8Cfl0MAw_500x500.png",
-    "aston villa": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/uyNNelfnFvCEnsLrUL-j2Q_500x500.png",
-    "chelsea": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/fhBITrIlbQxhVB6IjxUO6Q_500x500.png",
-    "sunderland": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/CQFeTfHrtxqgr3VKWtTwfA_500x500.png",
-    "brighton": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/EKIe0e-ZIphOcfQAwsuEEQ_500x500.png",
-    "leeds": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/5dqfOKpjjW6EwTAx_FysKQ_500x500.png",
-    "nottingham": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/Zr6FbE-8pDH7UBpWCO8U9A_500x500.png",
-    "everton": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/C3J47ea36cMBc4XPbp9aaA_500x500.png",
-    "liverpool": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/nGfV05dipbAc7zzojivKew_500x500.png",
-    "hull": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/riiyZbb1JHuFQgZ3831jUQ_500x500.png",
-    "newcastle": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/96CcNNQ0AYDAbssP0V9LuQ_500x500.png",
-    "man city": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/z44l-a0W1v5FmgPnemV6Xw_500x500.png",
-    "bournemouth": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/IcW6E1iJbW8k3NdfLz89Xw_500x500.png",
-    "fulham": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/b0L6C0J8fD8pXm9qE7m1aQ_500x500.png",
-    "crystal palace": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/8bP7_32n1wJ3qK8zE8_xXw_500x500.png",
-    "wolves": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/b92Xo_yS75bX6d8f8XqHfw_500x500.png",
-    "manchester united": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/udQ6ns69AwFY4DTOTBRxHQ_500x500.png",
-    "brentford": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/Q9qP5040b0ky5Fm1_8wRvg_500x500.png",
-    "tottenham": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/k3Q_mKE98Dnohrcea0JFgQ_500x500.png"
-}
+@st.cache_data(ttl=600)
+def fetch_live_arsenal_fixtures():
+    """FotMob公式APIからアーセナル（ID: 9825）の最新公式全日程をリアルタイム取得"""
+    url = "https://www.fotmob.com/api/teams?id=9825"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Referer": "https://www.fotmob.com/teams/9825/overview/arsenal"
+    }
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=6)
+        if res.status_code == 200:
+            data = res.json()
+            
+            # FotMobのJSONレスポンス構造から試合リストを走査
+            raw_fixtures = []
+            if "fixtures" in data:
+                fix_data = data["fixtures"]
+                if isinstance(fix_data, dict):
+                    raw_fixtures = fix_data.get("allFixtures", {}).get("fixtures", []) or fix_data.get("fixtures", [])
+                elif isinstance(fix_data, list):
+                    raw_fixtures = fix_data
+            
+            if not raw_fixtures and "overview" in data:
+                raw_fixtures = data["overview"].get("fixtures", [])
 
-def get_logo(name):
-    t = name.lower()
-    for k, url in TEAM_LOGOS.items():
-        if k in t:
-            return url
-    return "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png"
-
-# ==========================================
-# 2026-27シーズン アーセナル公式日程マスター（全38節）
-# ==========================================
-SEASON_2026_27_FIXTURES = [
-    {"round": 1, "label": "第1節: アーセナル 3 - 0 コヴェントリー (2026/08/22 確定)", "status": "FT", "home": "アーセナルFC", "away": "コヴェントリー・シティFC", "h_score": 3, "a_score": 0, "date": "2026-08-22", "match_day": 22, "scorers": [29, 7, 8], "assist": 33, "goal_time": 15, "passer": 49, "shots": 20, "possession": 64, "top_defender": 2, "first_sub": 19},
-    {"round": 2, "label": "第2節: アストン・ヴィラ 0 - 1 アーセナル (2026/09/01 確定)", "status": "FT", "home": "アストン・ヴィラFC", "away": "アーセナルFC", "h_score": 0, "a_score": 1, "date": "2026-09-01", "match_day": 1, "scorers": [7], "assist": 8, "goal_time": 59, "passer": 6, "shots": 14, "possession": 56, "top_defender": 2, "first_sub": 10},
-    {"round": 3, "label": "第3節: アーセナル vs チェルシー (2026/09/07)", "status": "UPCOMING", "home": "アーセナルFC", "away": "チェルシーFC", "h_score": None, "a_score": None, "date": "2026-09-07", "match_day": 7},
-    {"round": 4, "label": "第4節: サンダーランド vs アーセナル (2026/09/13)", "status": "UPCOMING", "home": "サンダーランドAFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-09-13", "match_day": 13},
-    {"round": 5, "label": "第5節: ブライトン vs アーセナル (2026/09/19)", "status": "UPCOMING", "home": "ブライトンFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-09-19", "match_day": 19},
-    {"round": 6, "label": "第6節: アーセナル vs リーズ (2026/10/10)", "status": "UPCOMING", "home": "アーセナルFC", "away": "リーズ・ユナイテッドFC", "h_score": None, "a_score": None, "date": "2026-10-10", "match_day": 10},
-    {"round": 7, "label": "第7節: N・フォレスト vs アーセナル (2026/10/19)", "status": "UPCOMING", "home": "ノッティンガム・フォレストFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-10-19", "match_day": 19},
-    {"round": 8, "label": "第8節: アーセナル vs エヴァートン (2026/10/24)", "status": "UPCOMING", "home": "アーセナルFC", "away": "エヴァートンFC", "h_score": None, "a_score": None, "date": "2026-10-24", "match_day": 24},
-    {"round": 9, "label": "第9節: リヴァプール vs アーセナル (2026/11/02)", "status": "UPCOMING", "home": "リヴァプールFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-11-02", "match_day": 2},
-    {"round": 10, "label": "第10節: アーセナル vs ハル・シティ (2026/11/08)", "status": "UPCOMING", "home": "アーセナルFC", "away": "ハル・シティAFC", "h_score": None, "a_score": None, "date": "2026-11-08", "match_day": 8},
-    {"round": 11, "label": "第11節: ニューカッスル vs アーセナル (2026/11/22)", "status": "UPCOMING", "home": "ニューカッスル・ユナイテッドFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-11-22", "match_day": 22},
-    {"round": 12, "label": "第12節: アーセナル vs マンチェスター・C (2026/11/29)", "status": "UPCOMING", "home": "アーセナルFC", "away": "マンチェスター・シティFC", "h_score": None, "a_score": None, "date": "2026-11-29", "match_day": 29},
-    {"round": 13, "label": "第13節: ボーンマス vs アーセナル (2026/12/05)", "status": "UPCOMING", "home": "AFCボーンマス", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-12-05", "match_day": 5},
-    {"round": 14, "label": "第14節: アーセナル vs フラム (2026/12/12)", "status": "UPCOMING", "home": "アーセナルFC", "away": "フラムFC", "h_score": None, "a_score": None, "date": "2026-12-12", "match_day": 12},
-    {"round": 15, "label": "第15節: クリスタル・パレス vs アーセナル (2026/12/19)", "status": "UPCOMING", "home": "クリスタル・パレスFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-12-19", "match_day": 19},
-    {"round": 16, "label": "第16節: アーセナル vs ウルヴス (2026/12/26)", "status": "UPCOMING", "home": "アーセナルFC", "away": "ウルヴァーハンプトンFC", "h_score": None, "a_score": None, "date": "2026-12-26", "match_day": 26},
-    {"round": 17, "label": "第17節: マンチェスター・U vs アーセナル (2026/12/29)", "status": "UPCOMING", "home": "マンチェスター・ユナイテッドFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2026-12-29", "match_day": 29},
-    {"round": 18, "label": "第18節: アーセナル vs ブレントフォード (2027/01/02)", "status": "UPCOMING", "home": "アーセナルFC", "away": "ブレントフォードFC", "h_score": None, "a_score": None, "date": "2027-01-02", "match_day": 2},
-    {"round": 19, "label": "第19節: トッテナム vs アーセナル (2027/01/16)", "status": "UPCOMING", "home": "トッテナムFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-01-16", "match_day": 16},
-    {"round": 20, "label": "第20節: アーセナル vs アストン・ヴィラ (2027/01/23)", "status": "UPCOMING", "home": "アーセナルFC", "away": "アストン・ヴィラFC", "h_score": None, "a_score": None, "date": "2027-01-23", "match_day": 23},
-    {"round": 21, "label": "第21節: コヴェントリー vs アーセナル (2027/01/30)", "status": "UPCOMING", "home": "コヴェントリー・シティFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-01-30", "match_day": 30},
-    {"round": 22, "label": "第22節: アーセナル vs サンダーランド (2027/02/06)", "status": "UPCOMING", "home": "アーセナルFC", "away": "サンダーランドAFC", "h_score": None, "a_score": None, "date": "2027-02-06", "match_day": 6},
-    {"round": 23, "label": "第23節: チェルシー vs アーセナル (2027/02/13)", "status": "UPCOMING", "home": "チェルシーFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-02-13", "match_day": 13},
-    {"round": 24, "label": "第24節: アーセナル vs ブライトン (2027/02/20)", "status": "UPCOMING", "home": "アーセナルFC", "away": "ブライトンFC", "h_score": None, "a_score": None, "date": "2027-02-20", "match_day": 20},
-    {"round": 25, "label": "第25節: リーズ vs アーセナル (2027/02/27)", "status": "UPCOMING", "home": "リーズ・ユナイテッドFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-02-27", "match_day": 27},
-    {"round": 26, "label": "第26節: アーセナル vs N・フォレスト (2027/03/06)", "status": "UPCOMING", "home": "アーセナルFC", "away": "ノッティンガム・フォレストFC", "h_score": None, "a_score": None, "date": "2027-03-06", "match_day": 6},
-    {"round": 27, "label": "第27節: エヴァートン vs アーセナル (2027/03/13)", "status": "UPCOMING", "home": "エヴァートンFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-03-13", "match_day": 13},
-    {"round": 28, "label": "第28節: アーセナル vs リヴァプール (2027/04/03)", "status": "UPCOMING", "home": "アーセナルFC", "away": "リヴァプールFC", "h_score": None, "a_score": None, "date": "2027-04-03", "match_day": 3},
-    {"round": 29, "label": "第29節: ハル・シティ vs アーセナル (2027/04/10)", "status": "UPCOMING", "home": "ハル・シティAFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-04-10", "match_day": 10},
-    {"round": 30, "label": "第30節: アーセナル vs ニューカッスル (2027/04/17)", "status": "UPCOMING", "home": "アーセナルFC", "away": "ニューカッスル・ユナイテッドFC", "h_score": None, "a_score": None, "date": "2027-04-17", "match_day": 17},
-    {"round": 31, "label": "第31節: マンチェスター・C vs アーセナル (2027/04/24)", "status": "UPCOMING", "home": "マンチェスター・シティFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-04-24", "match_day": 24},
-    {"round": 32, "label": "第32節: アーセナル vs ボーンマス (2027/05/01)", "status": "UPCOMING", "home": "アーセナルFC", "away": "AFCボーンマス", "h_score": None, "a_score": None, "date": "2027-05-01", "match_day": 1},
-    {"round": 33, "label": "第33節: フラム vs アーセナル (2027/05/08)", "status": "UPCOMING", "home": "フラムFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-05-08", "match_day": 8},
-    {"round": 34, "label": "第34節: アーセナル vs クリスタル・パレス (2027/05/12)", "status": "UPCOMING", "home": "アーセナルFC", "away": "クリスタル・パレスFC", "h_score": None, "a_score": None, "date": "2027-05-12", "match_day": 12},
-    {"round": 35, "label": "第35節: ウルヴス vs アーセナル (2027/05/15)", "status": "UPCOMING", "home": "ウルヴァーハンプトンFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-05-15", "match_day": 15},
-    {"round": 36, "label": "第36節: アーセナル vs マンチェスター・U (2027/05/19)", "status": "UPCOMING", "home": "アーセナルFC", "away": "マンチェスター・ユナイテッドFC", "h_score": None, "a_score": None, "date": "2027-05-19", "match_day": 19},
-    {"round": 37, "label": "第37節: ブレントフォード vs アーセナル (2027/05/23)", "status": "UPCOMING", "home": "ブレントフォードFC", "away": "アーセナルFC", "h_score": None, "a_score": None, "date": "2027-05-23", "match_day": 23},
-    {"round": 38, "label": "第38節: アーセナル vs トッテナム (2027/05/30 最終節)", "status": "UPCOMING", "home": "アーセナルFC", "away": "トッテナムFC", "h_score": None, "a_score": None, "date": "2027-05-30", "match_day": 30}
-]
+            extracted = []
+            for item in raw_fixtures:
+                # プレミアリーグの試合、または全公式戦を対象にする
+                t_name = item.get("tournament", {}).get("name", "")
+                home_dict = item.get("home", {})
+                away_dict = item.get("away", {})
+                status_dict = item.get("status", {})
+                
+                m_id = str(item.get("id", ""))
+                h_name = home_dict.get("name", "")
+                a_name = away_dict.get("name", "")
+                
+                # スコア判定
+                is_finished = status_dict.get("finished", False)
+                h_score = home_dict.get("score")
+                a_score = away_dict.get("score")
+                
+                # 試合日時パース
+                utc_str = status_dict.get("utcTime", "")
+                date_str = utc_str[:10] if len(utc_str) >= 10 else "未定"
+                day_num = int(utc_str[8:10]) if len(utc_str) >= 10 and utc_str[8:10].isdigit() else 1
+                
+                # 表示用ラベル生成
+                if is_finished and h_score is not None and a_score is not None:
+                    label = f"【終了】{h_name} {h_score} - {a_score} {a_name} ({date_str})"
+                else:
+                    label = f"【未開催】{h_name} vs {a_name} ({date_str})"
+                
+                extracted.append({
+                    "match_id": m_id,
+                    "label": label,
+                    "tournament": t_name,
+                    "home": h_name,
+                    "away": a_name,
+                    "h_score": int(h_score) if (h_score is not None and is_finished) else None,
+                    "a_score": int(a_score) if (a_score is not None and is_finished) else None,
+                    "is_finished": is_finished,
+                    "date": date_str,
+                    "day": day_num,
+                    "fotmob_url": f"https://www.fotmob.com/matches/{m_id}"
+                })
+            
+            if extracted:
+                return extracted, None
+        return [], f"FotMobサーバー通信エラー (HTTP {res.status_code})"
+    except Exception as e:
+        return [], f"取得エラー: {str(e)[:40]}"
 
 # ==========================================
 # ロト7 採番ロジック
@@ -202,15 +204,11 @@ def convert_to_loto_number(val):
     except (ValueError, TypeError):
         return 1
 
-def generate_ticket_1(stats, og_override=None):
+def generate_ticket_1(stats):
     selected = []
     log_details = []
 
-    scorers = stats.get("scorers", [])
-    if og_override is not None:
-        scorers = [og_override] + [s for s in scorers if s != og_override]
-
-    for sc in scorers:
+    for sc in stats.get("scorers", []):
         num = convert_to_loto_number(sc)
         if num not in selected and len(selected) < 7:
             selected.append(num)
@@ -264,21 +262,11 @@ def generate_ticket_1(stats, og_override=None):
     return sorted(selected), log_details
 
 def generate_ticket_2():
-    """統計的黄金バランス（奇偶比・合計値レンジ・ゾーン分散）を満たすまで動的生成"""
     while True:
         nums = sorted(random.sample(range(1, 38), 7))
         odds = sum(1 for n in nums if n % 2 != 0)
         total = sum(nums)
-        
-        # ゾーン分散判定（1〜9, 10〜19, 20〜29, 30〜37）
-        zones = set()
-        for n in nums:
-            if n <= 9: zones.add(1)
-            elif n <= 19: zones.add(2)
-            elif n <= 29: zones.add(3)
-            else: zones.add(4)
-            
-        # 奇偶比が3:4または4:3、合計値115〜145、3ゾーン以上に分散
+        zones = set((n - 1) // 10 for n in nums)
         if odds in [3, 4] and 115 <= total <= 145 and len(zones) >= 3:
             return nums, odds, 7 - odds, total
 
@@ -294,107 +282,125 @@ st.markdown("""
         <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="30" height="30" style="object-fit:contain;">
         <span style="font-size:18px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
     </div>
-    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">Premier League 2026-27</span>
+    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">FotMob Live Sync</span>
 </div>
 """, unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["⚽ 試合 & ナンバー算出", "📊 シーズン収支管理"])
 
 with tab1:
-    fixture_labels = [m["label"] for m in SEASON_2026_27_FIXTURES]
+    fixtures, err = fetch_live_arsenal_fixtures()
+
+    if err or not fixtures:
+        st.error(f"⚠️ 公式スケジュールの通信待機中: {err if err else 'データを取得できませんでした'}")
+        st.info("💡 FotMobから直接取得できない場合でも、下の手動入力からスコア・スタッツを即時計算できます。")
+        fixtures = [{
+            "match_id": "manual_entry",
+            "label": "【手動入力モード】最新試合を入力",
+            "tournament": "Premier League",
+            "home": "Arsenal",
+            "away": "Opponent",
+            "h_score": 2,
+            "a_score": 0,
+            "is_finished": True,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "day": datetime.now().day,
+            "fotmob_url": "https://www.fotmob.com/teams/9825/overview/arsenal"
+        }]
+    else:
+        st.caption(f"🟢 FotMob公式サーバーと同期中（取得試合数: {len(fixtures)}試合）")
+
+    # ② プルダウンで公式試合を選択
+    fixture_labels = [f["label"] for f in fixtures]
     selected_idx = st.selectbox(
-        "📅 試合を選択（第1節〜最終第38節）",
+        "📅 公式試合を選択（FotMobリアルタイム同期）",
         range(len(fixture_labels)),
         format_func=lambda i: fixture_labels[i]
     )
 
-    m = SEASON_2026_27_FIXTURES[selected_idx]
-    round_num = m["round"]
-    home_logo = get_logo(m["home"])
-    away_logo = get_logo(m["away"])
-    is_finished = m["status"] == "FT"
+    m = fixtures[selected_idx]
+    is_finished = m["is_finished"]
 
-    with st.expander("📝 試合結果・スタッツの確認＆手動入力（次節以降もここで入力可能）", expanded=not is_finished):
+    with st.expander("📝 試合スコア & ロト7連動スタッツ設定", expanded=True):
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            h_score_in = st.number_input("ホーム得点", min_value=0, value=m["h_score"] if is_finished else 0, key=f"hs_{round_num}")
+            h_score_val = st.number_input("ホーム得点", min_value=0, value=m["h_score"] if m["h_score"] is not None else 0, key=f"hs_{m['match_id']}")
         with col_m2:
-            a_score_in = st.number_input("アウェイ得点", min_value=0, value=m["a_score"] if is_finished else 0, key=f"as_{round_num}")
+            a_score_val = st.number_input("アウェイ得点", min_value=0, value=m["a_score"] if m["a_score"] is not None else 0, key=f"as_{m['match_id']}")
 
         col_s1, col_s2 = st.columns(2)
         with col_s1:
-            default_sc = ", ".join([str(n) for n in m.get("scorers", [7])]) if is_finished else "7"
-            scorers_str = st.text_input("得点者 背番号（カンマ区切り）", value=default_sc, key=f"sc_{round_num}")
-            assist_in = st.number_input("先制アシスト者 背番号", min_value=0, max_value=99, value=m.get("assist", 8) if is_finished else 8, key=f"asst_{round_num}")
-            goal_time_in = st.number_input("先制ゴール時間（分）", min_value=1, max_value=120, value=m.get("goal_time", 20) if is_finished else 20, key=f"gt_{round_num}")
+            scorers_str = st.text_input("得点者 背番号（カンマ区切り）", value="7", key=f"sc_{m['match_id']}")
+            assist_val = st.number_input("先制アシスト者 背番号", min_value=0, max_value=99, value=8, key=f"asst_{m['match_id']}")
+            goal_time_val = st.number_input("先制ゴール時間（分）", min_value=1, max_value=120, value=25, key=f"gt_{m['match_id']}")
         with col_s2:
-            passer_in = st.number_input("パス1位 背番号", min_value=1, max_value=99, value=m.get("passer", 6) if is_finished else 6, key=f"pass_{round_num}")
-            shots_in = st.number_input("総シュート数", min_value=0, value=m.get("shots", 15) if is_finished else 15, key=f"sh_{round_num}")
-            poss_in = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=m.get("possession", 55) if is_finished else 55, key=f"poss_{round_num}")
+            passer_val = st.number_input("パス数1位 背番号", min_value=1, max_value=99, value=6, key=f"pass_{m['match_id']}")
+            shots_val = st.number_input("チーム総シュート数", min_value=0, value=15, key=f"sh_{m['match_id']}")
+            poss_val = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=55, key=f"poss_{m['match_id']}")
 
-    is_ars_home = "アーセナル" in m["home"]
-    ars_score = h_score_in if is_ars_home else a_score_in
-    opp_score = a_score_in if is_ars_home else h_score_in
+    # 得失点差と口数判定
+    is_ars_home = "arsenal" in m["home"].lower()
+    ars_score = h_score_val if is_ars_home else a_score_val
+    opp_score = a_score_val if is_ars_home else h_score_val
     gd = ars_score - opp_score
 
-    has_score = is_finished or (h_score_in > 0 or a_score_in > 0)
-    tickets = max(0, min(5, gd)) if (has_score and gd > 0) else 0
+    has_result = is_finished or (h_score_val > 0 or a_score_val > 0)
+    tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
     cost = tickets * 300
 
-    # スコアカード
+    # スコアカード表示
     st.markdown(f"""
     <div class="match-card">
         <div style="display:flex; justify-content:space-between; font-size:12px; color:#94A3B8; margin-bottom:8px;">
-            <span>第{round_num}節 / 38節</span>
+            <span>{m['tournament']} (ID: {m['match_id']})</span>
             <span style="color:{'#34D399' if is_finished else '#F59E0B'}; font-weight:bold;">
-                {'FT (試合終了)' if is_finished else 'キックオフ前 (Upcoming)'}
+                {'FT (試合終了)' if is_finished else 'キックオフ前'}
             </span>
         </div>
         <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
-            <div style="text-align:center; width:95px;">
-                <img src="{home_logo}" width="54" height="54" style="object-fit:contain;">
-                <div style="font-weight:bold; font-size:13px; margin-top:6px;">{m['home']}</div>
+            <div style="text-align:center; width:110px;">
+                <div style="font-weight:bold; font-size:15px;">{m['home']}</div>
             </div>
             <div style="text-align:center;">
                 <div style="font-size:36px; font-weight:900; letter-spacing:3px;">
-                    {f"{h_score_in} - {a_score_in}" if has_score else "VS"}
+                    {f"{h_score_val} - {a_score_val}" if has_result else "VS"}
                 </div>
                 <div style="font-size:11px; color:#94A3B8;">{m['date']}</div>
             </div>
-            <div style="text-align:center; width:95px;">
-                <img src="{away_logo}" width="54" height="54" style="object-fit:contain;">
-                <div style="font-weight:bold; font-size:13px; margin-top:6px;">{m['away']}</div>
+            <div style="text-align:center; width:110px;">
+                <div style="font-weight:bold; font-size:15px;">{m['away']}</div>
             </div>
         </div>
         <div class="badge-win">
-            <span>🎯 判定: 得失点差 {'+' if gd > 0 else ''}{gd}点差</span>
+            <span>🎯 得失点差: {'+' if gd > 0 else ''}{gd}点差</span>
             <span>🛒 購入口数: {tickets}口 ({cost:,}円)</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    st.link_button("🔗 FotMob公式でこの試合の詳細を見る", m["fotmob_url"], use_container_width=True)
+
+    # ロト7 採番
     current_match_stats = {
         "scorers": [int(s.strip()) for s in scorers_str.split(",") if s.strip().isdigit()],
-        "assist": assist_in if assist_in > 0 else None,
-        "goal_time": goal_time_in,
-        "passer": passer_in,
-        "shots": shots_in,
-        "possession": poss_in,
-        "match_day": m["match_day"],
+        "assist": assist_val if assist_val > 0 else None,
+        "goal_time": goal_time_val,
+        "passer": passer_val,
+        "shots": shots_val,
+        "possession": poss_val,
+        "match_day": m["day"],
         "top_defender": 2,
         "first_sub": 19
     }
 
-    # セッションステートで2口目・3口目を保持（画面操作による不意な変動を防止）
-    t2_key = f"t2_data_{round_num}"
+    t2_key = f"t2_{m['match_id']}"
     if t2_key not in st.session_state:
         st.session_state[t2_key] = generate_ticket_2()
+    t2_nums, t2_odd, t2_even, t2_total = st.session_state[t2_key]
 
-    t3_key = f"t3_data_{round_num}"
+    t3_key = f"t3_{m['match_id']}"
     if t3_key not in st.session_state:
         st.session_state[t3_key] = generate_ticket_qp()
-
-    t2_nums, t2_odd, t2_even, t2_total = st.session_state[t2_key]
     t3_nums = st.session_state[t3_key]
 
     if tickets > 0:
@@ -406,20 +412,18 @@ with tab1:
         st.caption(" ➔ " + " / ".join(logs))
 
         if tickets >= 2:
-            st.markdown("**2口目【AI統計分析型（リアルタイム動的生成）】**")
+            st.markdown("**2口目【AI統計分析型（動的生成）】**")
             b2 = "".join([f'<div class="loto-ball loto-ball-gold">{n:02d}</div>' for n in t2_nums])
             st.markdown(f'<div class="ball-container">{b2}</div>', unsafe_allow_html=True)
-            st.caption(f" ➔ 統計分析: 奇数{t2_odd}:偶数{t2_even} / 合計値{t2_total} (黄金適正レンジ・広域分散)")
+            st.caption(f" ➔ 統計分析: 奇数{t2_odd}:偶数{t2_even} / 合計値{t2_total}")
 
         if tickets >= 3:
             st.markdown("**3口目【クイックピック（QP）】**")
             b3 = "".join([f'<div class="loto-ball">{n:02d}</div>' for n in t3_nums])
             st.markdown(f'<div class="ball-container">{b3}</div>', unsafe_allow_html=True)
-            st.caption(" ➔ 自動ランダム採番")
 
-        # コピペ用テキスト
         st.divider()
-        copy_text = f"""【ロト7 購入シート】{m['label']}
+        copy_text = f"""【ロト7 購入シート】{m['home']} vs {m['away']}
 購入口数: {tickets}口 ({cost:,}円)
 1口目: {' '.join([f'{n:02d}' for n in t1])}"""
         if tickets >= 2:
@@ -430,12 +434,11 @@ with tab1:
         st.markdown("**📋 購入用テキスト（右上のアイコンで1タップコピー）**")
         st.code(copy_text, language="text")
 
-        # 履歴保存ボタン
         if st.button("💾 この試合を購入履歴に保存", use_container_width=True):
             history = load_history()
             opp_name = m['away'] if is_ars_home else m['home']
             new_record = {
-                "round": round_num,
+                "match_id": m["match_id"],
                 "date": m["date"],
                 "opponent": opp_name,
                 "score": f"{ars_score}-{opp_score}",
@@ -448,12 +451,12 @@ with tab1:
             }
             history.insert(0, new_record)
             save_history(history)
-            st.success(f"「第{round_num}節 {opp_name}戦」の購入データを保存しました！")
+            st.success(f"「{m['home']} vs {m['away']}」の購入データを保存しました！")
     else:
-        if has_score:
+        if has_result:
             st.info("引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
         else:
-            st.info("キックオフ前です。試合終了後にスコアを入力するか、FotMobから最新スタッツを取り込んで採番してください。")
+            st.info("キックオフ前です。試合終了後にスコアを入力して採番してください。")
 
 with tab2:
     history = load_history()
@@ -464,7 +467,7 @@ with tab2:
 
     st.markdown(f"""
     <div class="match-card">
-        <div style="font-size:12px; color:#94A3B8;">2026-27 SEASON OVERVIEW (収支概要)</div>
+        <div style="font-size:12px; color:#94A3B8;">SEASON OVERVIEW (収支概要)</div>
         <div style="font-size:28px; font-weight:900; color:{'#34D399' if net_balance >= 0 else '#F87171'}; margin:6px 0;">
             {'+' if net_balance > 0 else ''}{net_balance:,} 円
         </div>
@@ -491,7 +494,7 @@ with tab2:
                         min_value=0,
                         step=1000,
                         value=rec.get("hit_amount", 0),
-                        key=f"won_{idx}_{rec['round']}"
+                        key=f"won_{idx}_{rec.get('match_id', idx)}"
                     )
                     if won_input != rec.get("hit_amount", 0):
                         history[idx]["hit_amount"] = int(won_input)
@@ -499,7 +502,7 @@ with tab2:
                         save_history(history)
                         st.rerun()
     else:
-        st.caption("保存された購入履歴はありません。「試合 & ナンバー算出」タブから保存してください。")
+        st.caption("保存された購入履歴はありません。")
 
     if st.button("🗑️ 履歴データをリセット"):
         save_history([])
