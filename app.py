@@ -175,16 +175,17 @@ SCHEDULE_2026_27 = [
     {"round": 38, "opp": "ブライトン", "ha": "H", "day": 30}
 ]
 
+# アーセナル背番号マスター（ラヤ=#1）
 ARSENAL_SQUAD_NUMBERS = {
-    "lewis-skelly": 49, "skelly": 49, "white": 4, "rice": 41,
-    "gabriel": 6, "saliba": 2, "odegaard": 8, "saka": 7,
-    "havertz": 29, "martinelli": 11, "calafiori": 33, "timber": 12,
-    "trossard": 19, "jesus": 9, "sterling": 30, "merino": 23,
-    "nwaneri": 53, "partey": 5, "zinchenko": 17, "jorginho": 20, "raya": 22
+    "raya": 1, "saliba": 2, "tierney": 3, "white": 4, "partey": 5,
+    "gabriel": 6, "saka": 7, "odegaard": 8, "jesus": 9, "martinelli": 11,
+    "timber": 12, "zinchenko": 17, "trossard": 19, "jorginho": 20,
+    "merino": 23, "havertz": 29, "sterling": 30, "calafiori": 33,
+    "rice": 41, "lewis-skelly": 49, "skelly": 49, "nwaneri": 53
 }
 
 # ==========================================
-# ロト7 採番ロジック（①〜⑩の厳密順序適用）
+# ロト7 採番ロジック（38以上のみ -37 適用）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -265,11 +266,14 @@ def generate_ticket_1(stats):
 
     # ⑧ 守備陣最上位 / GK（評価点トップDF、またはGKラヤ等）
     best_def_gk_num = stats.get("best_def_gk_num")
-    if len(selected) < 7 and best_def_gk_num:
+    if not best_def_gk_num:
+        best_def_gk_num = 2 # フォールバックとしてサリバ(#2)等を設定
+    if len(selected) < 7:
         num = convert_to_loto_number(best_def_gk_num)
         if num not in selected:
             selected.append(num)
-            log_details.append(f"⑧最高評価DF/GK: ({best_def_gk_num}➔{num:02d})")
+            orig = f"({best_def_gk_num}➔{num:02d})" if best_def_gk_num > 37 else f"({num:02d})"
+            log_details.append(f"⑧最高評価DF/GK: {orig}")
 
     # ⑨ クラブ伝統枠（14 ➔ 13 ➔ 18 ➔ 01）
     tradition_list = [14, 13, 18, 1]
@@ -287,7 +291,8 @@ def generate_ticket_1(stats):
         num = convert_to_loto_number(first_sub_num)
         if num not in selected:
             selected.append(num)
-            log_details.append(f"⑩ファースト・サブ: ({first_sub_num}➔{num:02d})")
+            orig = f"({first_sub_num}➔{num:02d})" if first_sub_num > 37 else f"({num:02d})"
+            log_details.append(f"⑩ファースト・サブ: {orig}")
 
     return sorted(selected), log_details
 
@@ -304,7 +309,7 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# Webページ解析（⑧〜⑩抽出の完全対応版）
+# Webページ解析（⑧の評価点トップDF/GK抽出強化版）
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
     if not url_or_text:
@@ -379,7 +384,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                 player_number_map[pid] = pnum
 
         # ⑧ 評価点最高DF/GKの特定
-        best_def_gk_num = 22 # デフォルトラヤ
+        best_def_gk_num = 2 # デフォルトDFサリバ
         highest_rating = -1.0
 
         for p in ars_players_all:
@@ -396,7 +401,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                         pnum = v
                         break
 
-            # 評価点
             rating = 0.0
             rc = p.get("rating", {})
             if isinstance(rc, dict):
@@ -407,18 +411,17 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             elif isinstance(rc, (int, float)):
                 rating = float(rc)
 
-            # GKまたはDFの判定
+            # GKまたはDFの判定条件を広げる
             is_def_gk = ("gk" in pos or "def" in pos or "keeper" in role or "defender" in role or 
-                         pnum in [2, 3, 4, 6, 12, 17, 22, 33])
+                         pnum in [1, 2, 3, 4, 6, 12, 17, 33])
 
             if is_def_gk and pnum:
                 if rating >= highest_rating:
                     highest_rating = rating
                     best_def_gk_num = pnum
 
-        # ⑩ ファースト・サブの特定（最初に入った交代選手）
-        first_sub_num = 53 # デフォルト
-        # サブ選手の中でタイムスタンプやリストの最初をファーストサブとする
+        # ⑩ ファースト・サブの特定
+        first_sub_num = 53
         if subs and len(subs) > 0:
             first_sub_p = subs[0]
             fs_id = str(first_sub_p.get("id", ""))
@@ -567,7 +570,7 @@ with tab1:
                 "shots": 15,
                 "poss": 55,
                 "day": m.get("day", 1),
-                "best_def_gk_num": 22,
+                "best_def_gk_num": 2,
                 "first_sub_num": 53
             }
 
@@ -754,7 +757,7 @@ with tab2:
 
     st.markdown(f"""
     <div class="match-card">
-        <div style="font-size:12px; color:#94A3B8; margin-2026 SEASON OVERVIEW (収支概要)</div>
+        <div style="font-size:12px; color:#94A3B8;">2026-27 SEASON OVERVIEW (収支概要)</div>
         <div style="font-size:28px; font-weight:900; color:{'#34D399' if net_balance >= 0 else '#F87171'}; margin:6px 0;">
             {'+' if net_balance > 0 else ''}{net_balance:,} 円
         </div>
