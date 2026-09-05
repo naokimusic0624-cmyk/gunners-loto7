@@ -175,7 +175,6 @@ SCHEDULE_2026_27 = [
     {"round": 38, "opp": "ブライトン", "ha": "H", "day": 30}
 ]
 
-# 画像（FotMob最新スカッド一覧）を完全反映した背番号マスター
 ARSENAL_SQUAD_NUMBERS = {
     "raya": 1, "kepa": 13, "meslier": 30,
     "white": 4, "timber": 12, "saliba": 2, "mosquera": 3,
@@ -242,7 +241,7 @@ def generate_ticket_1(stats):
     if stats.get("day"):
         try_add(stats["day"], "⑦開催日")
 
-    # ⑧ 守備陣最上位 / GK（評価点トップDF/GK、重複時は次点の選手を探索）
+    # ⑧ 守備陣最上位 / GK（評価点トップDF/GK）
     def_candidates = stats.get("def_gk_candidates", [2, 4, 6, 12, 1])
     for d_num in def_candidates:
         if len(selected) >= 7:
@@ -266,7 +265,7 @@ def generate_ticket_1(stats):
             log_details.append(f"⑨クラブ伝統枠({label_name}): ({num:02d})")
 
     # ⑩ ファースト・サブ
-    first_sub_num = stats.get("first_sub_num", 53)
+    first_sub_num = stats.get("first_sub_num", 56)
     if len(selected) < 7 and first_sub_num:
         try_add(first_sub_num, "⑩ファースト・サブ")
 
@@ -285,7 +284,7 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# Webページ解析（画像準拠の背番号・評価点リスト抽出）
+# Webページ解析（⑤シュート数の正確な抽出強化版）
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
     if not url_or_text:
@@ -359,9 +358,36 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             if pnum and pid:
                 player_number_map[pid] = pnum
 
-        # ⑧ 評価点順にソートしたGK/DFの候補リストを作成
-        def_gk_scored = []
+        # シュート数とポゼッションの抽出ロジック強化
+        shots = 15
+        possession = 55
+        
+        # 複数箇所のスタッツ構造を走査
+        stats_sections = []
+        if "stats" in content:
+            if "Periods" in content["stats"]:
+                p_data = content["stats"]["Periods"].get("All", {}).get("stats", [])
+                stats_sections.extend(p_data)
+            if "stats" in content["stats"]:
+                stats_sections.extend(content["stats"]["stats"])
 
+        for sec in stats_sections:
+            sec_stats = sec.get("stats", [])
+            for item in sec_stats:
+                title = str(item.get("title", "")).lower()
+                vals = item.get("stats", [])
+                if len(vals) >= 2:
+                    if "possession" in title or "ポゼッション" in title:
+                        p_str = str(vals[ars_idx]).replace("%", "").strip()
+                        if p_str.isdigit():
+                            possession = int(p_str)
+                    elif ("shot" in title or "シュート" in title) and ("total" in title or "総数" in title or "attempts" in title or len(title) < 15):
+                        s_str = str(vals[ars_idx]).strip()
+                        if s_str.isdigit():
+                            shots = int(s_str)
+
+        # 評価点順DF/GK候補抽出
+        def_gk_scored = []
         for p in ars_players_all:
             pid = str(p.get("id", ""))
             shirt = p.get("shirt") or p.get("shirtNumber")
@@ -399,8 +425,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             if fallback_n not in def_candidates:
                 def_candidates.append(fallback_n)
 
-        # ⑩ ファースト・サブの特定
-        first_sub_num = 56 # Dowmanなど
+        first_sub_num = 56
         if subs and len(subs) > 0:
             first_sub_p = subs[0]
             fs_id = str(first_sub_p.get("id", ""))
@@ -450,23 +475,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                                 if k in aname:
                                     first_assist = v
                                     break
-
-        shots = 15
-        possession = 55
-        stats_periods = content.get("stats", {}).get("Periods", {}).get("All", {}).get("stats", [])
-        for sec in stats_periods:
-            for item in sec.get("stats", []):
-                title = item.get("title", "").lower()
-                vals = item.get("stats", [])
-                if len(vals) >= 2:
-                    if "possession" in title:
-                        p_str = str(vals[ars_idx]).replace("%", "").strip()
-                        if p_str.isdigit():
-                            possession = int(p_str)
-                    elif "shots" in title and "total" in title:
-                        s_str = str(vals[ars_idx]).strip()
-                        if s_str.isdigit():
-                            shots = int(s_str)
 
         match_id_found = str(general.get("matchId") or (re.search(r'(\d{6,10})', clean_url).group(1) if re.search(r'(\d{6,10})', clean_url) else ""))
 
@@ -589,7 +597,7 @@ with tab1:
                     cur["first_sub_num"] = fetched["first_sub_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("最新スカッド情報を元にスタッツを正常抽出・保存しました！")
+                    st.success("シュート数を含む全スタッツを正常抽出・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
