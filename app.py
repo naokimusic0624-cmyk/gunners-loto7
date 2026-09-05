@@ -168,10 +168,122 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
+# ロト7 採番ロジック（厳密定義版）
+# ==========================================
+def convert_to_loto_number(val):
+    """38以上の数値を37引き（n - 37）で1〜37に正規化"""
+    try:
+        n = int(val)
+        while n > 37:
+            n -= 37
+        return n if n > 0 else 1
+    except (ValueError, TypeError):
+        return 1
+
+def generate_ticket_1(stats):
+    """
+    【明確な優先順位に基づく採番】
+    1. 得点者背番号（全員）
+    2. 先制アシスト背番号
+    3. 先制ゴール時間（分）
+    4. パス成功数1位 背番号
+    5. 総シュート数
+    6. ボール支配率（%）
+    7. 試合開催日（日）
+    ※重複した場合は順次スキップして7個を確保
+    """
+    selected = []
+    log_details = []
+
+    # 1. 得点者
+    for sc in stats.get("scorers", []):
+        num = convert_to_loto_number(sc)
+        if num not in selected and len(selected) < 7:
+            selected.append(num)
+            orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
+            log_details.append(f"得点者: {orig}")
+
+    # 2. 先制アシスト
+    if len(selected) < 7 and stats.get("assist"):
+        sc = stats["assist"]
+        num = convert_to_loto_number(sc)
+        if num not in selected:
+            selected.append(num)
+            orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
+            log_details.append(f"先制アシスト: {orig}")
+
+    # 3. 先制ゴール時間
+    if len(selected) < 7 and stats.get("goal_time"):
+        sc = stats["goal_time"]
+        num = convert_to_loto_number(sc)
+        if num not in selected:
+            selected.append(num)
+            orig = f"({sc}分➔{num:02d})" if sc > 37 else f"({num:02d}分)"
+            log_details.append(f"ゴール時間: {orig}")
+
+    # 4. パス1位
+    if len(selected) < 7 and stats.get("passer"):
+        sc = stats["passer"]
+        num = convert_to_loto_number(sc)
+        if num not in selected:
+            selected.append(num)
+            orig = f"({sc}➔{num:02d})" if sc > 37 else f"({num:02d})"
+            log_details.append(f"パス1位: {orig}")
+
+    # 5. 総シュート数
+    if len(selected) < 7 and stats.get("shots"):
+        sc = stats["shots"]
+        num = convert_to_loto_number(sc)
+        if num not in selected:
+            selected.append(num)
+            orig = f"({sc}本➔{num:02d})" if sc > 37 else f"({num:02d})"
+            log_details.append(f"総シュート数: {orig}")
+
+    # 6. ボール支配率
+    if len(selected) < 7 and stats.get("poss"):
+        sc = stats["poss"]
+        num = convert_to_loto_number(sc)
+        if num not in selected:
+            selected.append(num)
+            orig = f"({sc}%➔{num:02d})" if sc > 37 else f"({num:02d})"
+            log_details.append(f"支配率: {orig}")
+
+    # 7. 開催日
+    if len(selected) < 7 and stats.get("day"):
+        sc = stats["day"]
+        num = convert_to_loto_number(sc)
+        if num not in selected:
+            selected.append(num)
+            log_details.append(f"開催日: ({num:02d}日)")
+
+    # 予備枠（重複等で7個に満たない場合のみ補充）
+    fallback_pool = [2, 14, 18, 1, 19]
+    fb_idx = 0
+    while len(selected) < 7 and fb_idx < len(fallback_pool):
+        cand = convert_to_loto_number(fallback_pool[fb_idx])
+        if cand not in selected:
+            selected.append(cand)
+            log_details.append(f"予備枠: ({cand:02d})")
+        fb_idx += 1
+
+    return sorted(selected), log_details
+
+def generate_ticket_2():
+    while True:
+        nums = sorted(random.sample(range(1, 38), 7))
+        odds = sum(1 for n in nums if n % 2 != 0)
+        total = sum(nums)
+        zones = set((n - 1) // 10 for n in nums)
+        if odds in [3, 4] and 115 <= total <= 145 and len(zones) >= 3:
+            return nums, odds, 7 - odds, total
+
+def generate_ticket_qp():
+    return sorted(random.sample(range(1, 38), 7))
+
+# ==========================================
 # Webページ埋め込みデータ直接抽出パーサー
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
-    """WebページのHTMLから埋め込みJSON（__NEXT_DATA__）を解析し、スコア・イベント・パス1位を自動抽出"""
     if not url_or_text:
         return None, "URLが入力されていません"
 
@@ -210,13 +322,11 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         header = page_props.get("header", {})
         general = page_props.get("general", {})
 
-        # スコア取得
         teams = header.get("teams", [])
         h_sc = teams[0].get("score", 0) if len(teams) >= 1 else 0
         a_sc = teams[1].get("score", 0) if len(teams) >= 2 else 0
         is_finished = header.get("status", {}).get("finished", False)
 
-        # 選手背番号マップ作成 & アーセナル所属選手の特定
         player_number_map = {}
         lineup = content.get("lineup", {})
         ars_side = "homeTeam" if is_home else "awayTeam"
@@ -230,8 +340,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                 if pid and shirt:
                     player_number_map[pid] = int(shirt)
 
-        # パス数1位の自動判定（正確なパス / Accurate Passes）
-        top_passer_number = 49  # フォールバック
+        # パス1位判定（正確なパス）
+        top_passer_number = 49
         max_accurate_passes = -1
 
         for p in ars_players_list:
@@ -244,7 +354,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                         pnum = v
                         break
 
-            # 選手のスタッツ辞書/リストを走査してパス成功数を特定
             p_passes = 0
             p_stats = p.get("stats", [])
             if isinstance(p_stats, list):
@@ -273,7 +382,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                 max_accurate_passes = p_passes
                 top_passer_number = pnum
 
-        # ゴール・アシスト・時間
         events = content.get("matchFacts", {}).get("events", {}).get("events", [])
         scorers = []
         first_assist = None
@@ -307,7 +415,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                                     first_assist = v
                                     break
 
-        # シュート数・支配率
         shots = 15
         possession = 55
         stats_periods = content.get("stats", {}).get("Periods", {}).get("All", {}).get("stats", [])
@@ -344,87 +451,6 @@ def fetch_from_fotmob_page(url_or_text, is_home):
 
     except Exception as e:
         return None, f"解析エラー: {str(e)[:30]}"
-
-# ==========================================
-# ロト7 採番ロジック
-# ==========================================
-def convert_to_loto_number(val):
-    try:
-        n = int(val)
-        while n > 37:
-            n -= 37
-        return n if n > 0 else 1
-    except (ValueError, TypeError):
-        return 1
-
-def generate_ticket_1(stats):
-    selected = []
-    log_details = []
-
-    for sc in stats.get("scorers", []):
-        num = convert_to_loto_number(sc)
-        if num not in selected and len(selected) < 7:
-            selected.append(num)
-            log_details.append(f"得点者: {num:02d}")
-
-    if len(selected) < 7 and stats.get("assist"):
-        num = convert_to_loto_number(stats["assist"])
-        if num not in selected:
-            selected.append(num)
-            log_details.append(f"先制アシスト: {num:02d}")
-
-    if len(selected) < 7 and stats.get("goal_time"):
-        num = convert_to_loto_number(stats["goal_time"])
-        if num not in selected:
-            selected.append(num)
-            log_details.append(f"ゴール時間: {num:02d}分")
-
-    if len(selected) < 7 and stats.get("passer"):
-        num = convert_to_loto_number(stats["passer"])
-        if num not in selected:
-            selected.append(num)
-            log_details.append(f"パス1位: {num:02d}")
-
-    if len(selected) < 7 and stats.get("shots"):
-        num = convert_to_loto_number(stats["shots"])
-        if num not in selected:
-            selected.append(num)
-            log_details.append(f"総シュート数: {num:02d}")
-
-    if len(selected) < 7 and stats.get("poss"):
-        num = convert_to_loto_number(stats["poss"])
-        if num not in selected:
-            selected.append(num)
-            log_details.append(f"支配率: {num:02d}")
-
-    if len(selected) < 7 and stats.get("day"):
-        num = convert_to_loto_number(stats["day"])
-        if num not in selected:
-            selected.append(num)
-            log_details.append(f"開催日: {num:02d}日")
-
-    fallback_pool = [2, 14, 13, 18, 1, 19]
-    fb_idx = 0
-    while len(selected) < 7 and fb_idx < len(fallback_pool):
-        cand = convert_to_loto_number(fallback_pool[fb_idx])
-        if cand not in selected:
-            selected.append(cand)
-            log_details.append(f"予備枠: {cand:02d}")
-        fb_idx += 1
-
-    return sorted(selected), log_details
-
-def generate_ticket_2():
-    while True:
-        nums = sorted(random.sample(range(1, 38), 7))
-        odds = sum(1 for n in nums if n % 2 != 0)
-        total = sum(nums)
-        zones = set((n - 1) // 10 for n in nums)
-        if odds in [3, 4] and 115 <= total <= 145 and len(zones) >= 3:
-            return nums, odds, 7 - odds, total
-
-def generate_ticket_qp():
-    return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
 # メイン画面 UI
