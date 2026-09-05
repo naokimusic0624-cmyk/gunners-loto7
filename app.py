@@ -187,7 +187,7 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# ロト7 採番ロジック（①〜⑩ 厳密順序・完全重複排除）
+# ロト7 採番ロジック（①〜⑩ 厳密入力直結＆完全順次判定）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -218,29 +218,30 @@ def generate_ticket_1(stats):
         try_add(sc, "①得点者")
 
     # ② 先制点 アシスト者
-    if stats.get("assist"):
+    if stats.get("assist") is not None:
         try_add(stats["assist"], "②アシスト")
 
     # ③ 先制ゴール時間
-    if stats.get("goal_time"):
+    if stats.get("goal_time") is not None:
         try_add(stats["goal_time"], "③ゴール時間")
 
     # ④ パス成功数 1位
-    passer_val = stats.get("passer", 49)
-    if passer_val in [1, "1", 0, "0"]:
-        passer_val = 49
-    try_add(passer_val, "④パス1位")
+    if stats.get("passer") is not None:
+        passer_val = stats["passer"]
+        if passer_val in [1, "1", 0, "0"]:
+            passer_val = 49
+        try_add(passer_val, "④パス1位")
 
-    # ⑤ チーム総シュート数（入力値をそのまま優先）
-    if stats.get("shots"):
+    # ⑤ チーム総シュート数
+    if stats.get("shots") is not None:
         try_add(stats["shots"], "⑤シュート数")
 
     # ⑥ ボール支配率
-    if stats.get("poss"):
+    if stats.get("poss") is not None:
         try_add(stats["poss"], "⑥支配率")
 
     # ⑦ 試合開催日
-    if stats.get("day"):
+    if stats.get("day") is not None:
         try_add(stats["day"], "⑦開催日")
 
     # ⑧ 守備陣最上位 / GK（評価点トップDF/GK、重複時は次点の選手を順次探索）
@@ -268,7 +269,7 @@ def generate_ticket_1(stats):
 
     # ⑩ ファースト・サブ
     first_sub_num = stats.get("first_sub_num", 56)
-    if len(selected) < 7 and first_sub_num:
+    if len(selected) < 7 and first_sub_num is not None:
         try_add(first_sub_num, "⑩ファースト・サブ")
 
     return sorted(selected), log_details
@@ -383,7 +384,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                             possession = int(p_str)
                     elif ("shot" in title or "シュート" in title) and ("total" in title or "総数" in title or "attempts" in title or len(title) < 15):
                         s_str = str(vals[ars_idx]).strip()
-                        if s_str.isdigit() and int(s_str) > 1:
+                        if s_str.isdigit():
                             shots = int(s_str)
 
         # 評価点順DF/GK候補抽出
@@ -597,7 +598,7 @@ with tab1:
                     cur["first_sub_num"] = fetched["first_sub_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("シュート数とスタッツの紐付けを修正しました！")
+                    st.success("スタッツを正常抽出・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
@@ -627,6 +628,9 @@ with tab1:
             cur["poss"] = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
             cur["day"] = st.number_input("試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", 1)), key=f"day_{round_num}")
 
+    # 手動入力の値をスタッツ辞書に直結
+    cur["day"] = int(cur.get("day", m.get("day", 1)))
+    
     ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
     opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
     gd = ars_score - opp_score
