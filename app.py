@@ -205,106 +205,124 @@ st.markdown("""
         <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="30" height="30" style="object-fit:contain;">
         <span style="font-size:18px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
     </div>
-    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">Modular Architecture</span>
+    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">Modular Master</span>
 </div>
 """, unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["⚽ 試合 & ナンバー算出", "📊 シーズン収支管理", "⚙️ 初期設定（スケジュール同期）"])
 
 # --------------------------------------------------
-# TAB 3: 【フェーズ①：初期設定（スケジュール取得・保存）】
+# TAB 3: 初期設定（スケジュール同期）
 # --------------------------------------------------
 with tab3:
     st.markdown("### ⚙️ 年間スケジュール初期設定")
-    st.caption("指定チームの年間スケジュールデータを外部ソースから取得し、アプリ内に保存します。ハードコードを排除し、ここからいつでも公式日程を同期・更新できます。")
+    st.caption("指定チームの全日程データを取得・登録します。")
 
     team_id_input = st.text_input("FotMob チームID（アーセナルは 9825）", value="9825")
     
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("🔄 公式スケジュールを取得して保存", use_container_width=True):
-            with st.spinner("スケジュールデータを取得中..."):
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Referer": "https://www.fotmob.com/"
-                }
-                # FotMobのチーム公式フィクスチャURL
-                url = f"https://www.fotmob.com/api/teams?id={team_id_input}"
+    if st.button("🔄 公式スケジュールを取得して保存", use_container_width=True):
+        with st.spinner("FotMob公式サーバーからスケジュールを取得中..."):
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Referer": "https://www.fotmob.com/",
+                "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
+            }
+            # 正しいエンドポイント（単数形 team）
+            urls_to_try = [
+                f"https://www.fotmob.com/api/team?id={team_id_input}",
+                f"https://www.fotmob.com/api/teams?id={team_id_input}"
+            ]
+            
+            res_data = None
+            last_err = ""
+            for u in urls_to_try:
                 try:
-                    res = requests.get(url, headers=headers, timeout=8)
+                    res = requests.get(u, headers=headers, timeout=6)
                     if res.status_code == 200:
-                        data = res.json()
-                        raw_fixtures = data.get("fixtures", {}).get("allFixtures", {}).get("fixtures", [])
-                        if not raw_fixtures and "overview" in data:
-                            raw_fixtures = data["overview"].get("fixtures", [])
-
-                        extracted = []
-                        for item in raw_fixtures:
-                            m_id = str(item.get("id", ""))
-                            h_name = item.get("home", {}).get("name", "")
-                            a_name = item.get("away", {}).get("name", "")
-                            h_score = item.get("home", {}).get("score")
-                            a_score = item.get("away", {}).get("score")
-                            status = item.get("status", {})
-                            is_fin = status.get("finished", False)
-                            utc_str = status.get("utcTime", "")
-                            date_str = utc_str[:10] if len(utc_str) >= 10 else "未定"
-                            day_num = int(utc_str[8:10]) if (len(utc_str) >= 10 and utc_str[8:10].isdigit()) else 1
-
-                            label = f"{h_name} {h_score if is_fin else ''} - {a_score if is_fin else ''} {a_name} ({date_str})".replace("  -  ", " vs ")
-                            extracted.append({
-                                "match_id": m_id,
-                                "label": label,
-                                "home": h_name,
-                                "away": a_name,
-                                "h_score": h_score if is_fin else 0,
-                                "a_score": a_score if is_fin else 0,
-                                "is_finished": is_fin,
-                                "date": date_str,
-                                "day": day_num,
-                                "scorers": [7],
-                                "assist": 8,
-                                "goal_time": 20,
-                                "passer": 6,
-                                "shots": 15,
-                                "possession": 55
-                            })
-
-                        if extracted:
-                            save_json(FIXTURES_FILE, extracted)
-                            st.success(f"✅ {len(extracted)}試合のスケジュールを保存しました！「⚽ 試合 & ナンバー算出」タブで確認できます。")
-                        else:
-                            st.warning("試合データを抽出できませんでした。手動JSONインポートをご利用ください。")
+                        res_data = res.json()
+                        break
                     else:
-                        st.error(f"FotMobサーバー通信エラー (HTTP {res.status_code})。手動JSONインポートをお試しください。")
+                        last_err = f"HTTP {res.status_code}"
                 except Exception as e:
-                    st.error(f"通信エラー: {str(e)}")
+                    last_err = str(e)
+
+            if res_data:
+                # 柔軟なフィクスチャ抽出
+                raw_fixtures = []
+                if "fixtures" in res_data:
+                    f_sec = res_data["fixtures"]
+                    if isinstance(f_sec, dict):
+                        raw_fixtures = f_sec.get("allFixtures", {}).get("fixtures", []) or f_sec.get("fixtures", [])
+                    elif isinstance(f_sec, list):
+                        raw_fixtures = f_sec
+                if not raw_fixtures and "overview" in res_data:
+                    raw_fixtures = res_data["overview"].get("fixtures", [])
+
+                extracted = []
+                for item in raw_fixtures:
+                    m_id = str(item.get("id", ""))
+                    h_name = item.get("home", {}).get("name", "")
+                    a_name = item.get("away", {}).get("name", "")
+                    h_score = item.get("home", {}).get("score")
+                    a_score = item.get("away", {}).get("score")
+                    status = item.get("status", {})
+                    is_fin = status.get("finished", False)
+                    utc_str = status.get("utcTime", "")
+                    date_str = utc_str[:10] if len(utc_str) >= 10 else ""
+                    day_num = int(utc_str[8:10]) if (len(utc_str) >= 10 and utc_str[8:10].isdigit()) else 1
+
+                    label = f"{h_name} {h_score if is_fin else ''} - {a_score if is_fin else ''} {a_name} ({date_str})".replace("  -  ", " vs ")
+                    extracted.append({
+                        "match_id": m_id,
+                        "label": label,
+                        "home": h_name,
+                        "away": a_name,
+                        "h_score": h_score if is_fin else 0,
+                        "a_score": a_score if is_fin else 0,
+                        "is_finished": is_fin,
+                        "date": date_str,
+                        "day": day_num,
+                        "scorers": [7],
+                        "assist": 8,
+                        "goal_time": 20,
+                        "passer": 6,
+                        "shots": 15,
+                        "possession": 55
+                    })
+
+                if extracted:
+                    save_json(FIXTURES_FILE, extracted)
+                    st.success(f"✅ {len(extracted)}試合のスケジュールを保存しました！「⚽ 試合 & ナンバー算出」タブで確認できます。")
+                    st.rerun()
+                else:
+                    st.warning("試合データを抽出できませんでした。下部の手動インポートをご利用ください。")
+            else:
+                st.error(f"FotMob通信エラー ({last_err})。サーバーによるアクセス遮断の可能性があるため、下記の手動インポート枠から即時登録できます。")
 
     st.divider()
     st.markdown("#### 📁 スケジュールJSONの手動インポート / 編集")
-    st.caption("外部APIがブロックされた場合でも、ここにJSONデータを貼り付けることで確実に初期設定を完了できます。")
+    st.caption("通信環境に左右されず、データを貼り付けて保存ボタンを押すだけで初期設定を即時完了できます。")
     current_fixtures = load_json(FIXTURES_FILE)
     json_text = st.text_area("スケジュールJSONデータ", value=json.dumps(current_fixtures, ensure_ascii=False, indent=2) if current_fixtures else "[]", height=200)
-    if st.button("💾 JSONを保存する"):
+    if st.button("💾 JSONを保存する", use_container_width=True):
         try:
             parsed = json.loads(json_text)
             save_json(FIXTURES_FILE, parsed)
-            st.success(f"✅ {len(parsed)}試合のスケジュールを保存しました！")
+            st.success(f"✅ {len(parsed)}試合のスケジュールを正常に登録しました！")
             st.rerun()
         except Exception as e:
             st.error(f"JSON形式エラー: {str(e)}")
 
 # --------------------------------------------------
-# TAB 1: 【フェーズ②＆③：プルダウン選択 ➔ スタッツ連動】
+# TAB 1: 試合 & ナンバー算出
 # --------------------------------------------------
 with tab1:
     saved_fixtures = load_json(FIXTURES_FILE)
 
     if not saved_fixtures:
-        st.warning("⚠️ スケジュールがまだ設定されていません。")
-        st.info("右上の「⚙️ 初期設定」タブを開き、「🔄 公式スケジュールを取得して保存」を押してください。")
+        st.warning("⚠️ スケジュールがまだ登録されていません。")
+        st.info("上部の「⚙️ 初期設定（スケジュール同期）」タブを開いて、スケジュールを取得または保存してください。")
     else:
-        # ② プルダウン選択（保存データから生成）
         labels = [f"第{i+1}戦: {item.get('label', '')}" for i, item in enumerate(saved_fixtures)]
         selected_idx = st.selectbox(
             "📅 試合を選択してください",
@@ -316,7 +334,6 @@ with tab1:
         m_id = m.get("match_id", "")
         is_finished = m.get("is_finished", False)
 
-        # ③ 選ばれた試合の詳細スタッツ
         with st.expander("📝 試合スコア & スタッツ（手動補正・OG対応）", expanded=not is_finished):
             col_m1, col_m2 = st.columns(2)
             with col_m1:
@@ -335,7 +352,6 @@ with tab1:
                 shots_val = st.number_input("総シュート数", min_value=0, value=int(m.get("shots", 15)), key=f"sh_{m_id}")
                 poss_val = st.number_input("ボール支配率 (%)", min_value=0, max_value=100, value=int(m.get("possession", 55)), key=f"poss_{m_id}")
 
-        # 勝敗判定
         h_team = m.get("home", "")
         a_team = m.get("away", "")
         is_ars_home = "arsenal" in h_team.lower() or "アーセナル" in h_team
@@ -347,7 +363,6 @@ with tab1:
         tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
         cost = tickets * 300
 
-        # スコアカード
         st.markdown(f"""
         <div class="match-card">
             <div style="display:flex; justify-content:space-between; font-size:12px; color:#94A3B8; margin-bottom:8px;">
@@ -376,7 +391,6 @@ with tab1:
         if m_id:
             st.link_button("🔗 FotMobで公式スタッツを見る", f"https://www.fotmob.com/matches/{m_id}", use_container_width=True)
 
-        # ロト7 採番
         current_stats = {
             "scorers": [int(s.strip()) for s in scorers_str.split(",") if s.strip().isdigit()],
             "assist": assist_val if assist_val > 0 else None,
