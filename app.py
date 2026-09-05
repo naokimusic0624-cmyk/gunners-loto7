@@ -187,7 +187,7 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# ロト7 採番ロジック（①〜⑩ 厳密順序＆重複完全排除）
+# ロト7 採番ロジック（①〜⑩ 厳密順序・完全重複排除）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -231,7 +231,7 @@ def generate_ticket_1(stats):
         passer_val = 49
     try_add(passer_val, "④パス1位")
 
-    # ⑤ チーム総シュート数
+    # ⑤ チーム総シュート数（入力値をそのまま優先）
     if stats.get("shots"):
         try_add(stats["shots"], "⑤シュート数")
 
@@ -383,7 +383,7 @@ def fetch_from_fotmob_page(url_or_text, is_home):
                             possession = int(p_str)
                     elif ("shot" in title or "シュート" in title) and ("total" in title or "総数" in title or "attempts" in title or len(title) < 15):
                         s_str = str(vals[ars_idx]).strip()
-                        if s_str.isdigit():
+                        if s_str.isdigit() and int(s_str) > 1:
                             shots = int(s_str)
 
         # 評価点順DF/GK候補抽出
@@ -597,7 +597,7 @@ with tab1:
                     cur["first_sub_num"] = fetched["first_sub_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("順序・重複排除を適用して正常に抽出・保存しました！")
+                    st.success("シュート数とスタッツの紐付けを修正しました！")
                     st.rerun()
                 else:
                     st.error(err)
