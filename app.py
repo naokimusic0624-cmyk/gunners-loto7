@@ -187,7 +187,6 @@ ARSENAL_SQUAD_NUMBERS = {
 # ロト7 採番ロジック（確定新順序版：①〜⑩ + (-37)）
 # ==========================================
 def convert_to_loto_number(val):
-    """38以上の数値は一律『該当数値 - 37』を適用して1〜37に正規化"""
     try:
         n = int(val)
         while n > 37:
@@ -263,17 +262,22 @@ def generate_ticket_1(stats):
             selected.append(num)
             log_details.append(f"⑦開催日: ({num:02d}日)")
 
-    # ⑧〜⑩ 差し替え枠・補填枠プール
-    replacement_pool = [
-        (2, "⑧守備陣最上位/サリバ(#2)"),
-        (22, "⑧GKラヤ(#22)"),
-        (14, "⑨クラブ伝統枠(アンリ#14)"),
-        (13, "⑨クラブ伝統枠(優勝数#13)"),
-        (18, "⑨クラブ伝統枠(創設年#18)"),
-        (1, "⑨クラブ伝統枠(#01)"),
-        (53, "⑩ファースト・サブ(ヌワネリ#53)"),
-        (30, "⑩ファースト・サブ(スターリング#30)")
-    ]
+    # ⑧〜⑩ 差し替え枠・補填枠プール（出場メンバー連動型）
+    active_lineup = stats.get("lineup_numbers", [22, 4, 6, 12, 33, 53]) # デフォルトはラヤ(#22), ホワイト(#4), ガブリエウ(#6)等
+    replacement_pool = []
+    
+    # ⑧ 守備陣・GK（実際に出場しているメンバーの背番号を優先）
+    for def_num in active_lineup:
+        replacement_pool.append((def_num, f"⑧守備陣最上位/GK(# {def_num})"))
+    
+    # ⑨ クラブ伝統枠
+    tradition_nums = [(14, "⑨クラブ伝統枠(アンリ#14)"), (13, "⑨クラブ伝統枠(優勝数#13)"), (18, "⑨クラブ伝統枠(創設年#18)"), (1, "⑨クラブ伝統枠(#01)")]
+    for t_num, t_label in tradition_nums:
+        replacement_pool.append((t_num, t_label))
+
+    # ⑩ ファースト・サブ
+    replacement_pool.append((53, "⑩ファースト・サブ(ヌワネリ#53)"))
+    replacement_pool.append((30, "⑩ファースト・サブ(スターリング#30)"))
     
     pool_idx = 0
     while len(selected) < 7 and pool_idx < len(replacement_pool):
@@ -355,13 +359,21 @@ def fetch_from_fotmob_page(url_or_text, is_home):
 
         player_number_map = {}
         lineup = content.get("lineup", {})
-        for side in ["homeTeam", "awayTeam"]:
-            team_lineup = lineup.get(side, {})
-            for p in team_lineup.get("starters", []) + team_lineup.get("subs", []):
-                pid = str(p.get("id", ""))
-                shirt = p.get("shirt") or p.get("shirtNumber")
-                if pid and shirt:
-                    player_number_map[pid] = int(shirt)
+        ars_side = "homeTeam" if ars_idx == 0 else "awayTeam"
+        ars_starters = lineup.get(ars_side, {}).get("starters", [])
+        
+        active_lineup_nums = []
+        for p in ars_starters:
+            pid = str(p.get("id", ""))
+            shirt = p.get("shirt") or p.get("shirtNumber")
+            if pid and shirt:
+                player_number_map[pid] = int(shirt)
+                active_lineup_nums.append(int(shirt))
+
+        # スタメンにいない場合も考慮してDF/GK系を補強
+        for default_num in [22, 4, 6, 12, 33, 49]:
+            if default_num not in active_lineup_nums:
+                active_lineup_nums.append(default_num)
 
         top_passer_number = 49
 
@@ -427,7 +439,8 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             "goal_time": first_time or 20,
             "passer": top_passer_number,
             "shots": shots,
-            "possession": possession
+            "possession": possession,
+            "lineup_numbers": active_lineup_nums
         }, None
 
     except Exception as e:
@@ -493,7 +506,8 @@ with tab1:
                 "passer": 49,
                 "shots": 15,
                 "poss": 55,
-                "day": m.get("day", 1)
+                "day": m.get("day", 1),
+                "lineup_numbers": [22, 4, 6, 12, 33]
             }
 
     cur = st.session_state[state_key]
@@ -528,9 +542,10 @@ with tab1:
                     cur["passer"] = 49
                     cur["shots"] = fetched["shots"]
                     cur["poss"] = fetched["possession"]
+                    cur["lineup_numbers"] = fetched["lineup_numbers"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("スタッツを抽出し、保存しました！")
+                    st.success("スタッツと出場メンバーを抽出し、保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
