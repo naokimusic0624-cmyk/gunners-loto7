@@ -11,7 +11,7 @@ from datetime import datetime
 # ==========================================
 st.set_page_config(
     page_title="Gunners Loto 7",
-    page_icon="🔴",
+    page_icon="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -27,7 +27,7 @@ st.markdown("""
     
     /* ヘッダー */
     .arsenal-header {
-        background: linear-gradient(135deg, #DB0007 0%, #9C824A 100%);
+        background: linear-gradient(135deg, #DB0007 0%, #7F0004 100%);
         padding: 12px 18px;
         border-radius: 12px;
         color: white;
@@ -36,20 +36,21 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         margin-bottom: 15px;
-        box-shadow: 0 4px 15px rgba(219, 0, 7, 0.3);
+        box-shadow: 0 4px 15px rgba(219, 0, 7, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     /* マッチカード */
     .match-card {
         background-color: #1E293B;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         padding: 18px;
-        margin-bottom: 15px;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        margin-bottom: 12px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
     }
     
-    /* ボールUI（通常白球・AI金球） */
+    /* ロトボールUI */
     .ball-container {
         display: flex;
         justify-content: space-between;
@@ -85,11 +86,26 @@ st.markdown("""
         font-weight: bold;
         display: flex;
         justify-content: space-between;
+        margin-top: 10px;
+    }
+
+    /* 入力フォーム・テキストエリアの視認性改善（文字色と背景のコントラスト確保） */
+    div[data-baseweb="textarea"], div[data-baseweb="input"] {
+        background-color: #0F172A !important;
+        border: 1px solid #475569 !important;
+        border-radius: 8px !important;
+    }
+    div[data-baseweb="textarea"] textarea, div[data-baseweb="input"] input {
+        color: #F8FAFC !important;
+        -webkit-text-fill-color: #F8FAFC !important;
+        background-color: transparent !important;
+        font-size: 14px !important;
     }
     
-    .stButton>button {
-        border-radius: 10px;
-        font-weight: bold;
+    /* ボタン共通 */
+    .stButton>button, .stLinkButton>a {
+        border-radius: 10px !important;
+        font-weight: bold !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -111,6 +127,26 @@ def load_history():
 def save_history(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+# ==========================================
+# チームエンブレム画像マップ
+# ==========================================
+TEAM_LOGOS = {
+    "arsenal": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png",
+    "coventry": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/KHpmY4tIwqiutl8Cfl0MAw_500x500.png",
+    "man city": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/z44l-a0W1v5FmgPnemV6Xw_500x500.png",
+    "aston villa": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/uyNNelfnFvCEnsLrUL-j2Q_500x500.png",
+    "chelsea": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/fhBITrIlbQxhVB6IjxUO6Q_500x500.png",
+    "liverpool": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/nGfV05dipbAc7zzojivKew_500x500.png",
+    "tottenham": "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/k3Q_mKE98Dnohrcea0JFgQ_500x500.png"
+}
+
+def get_logo_url(team_name):
+    t = team_name.lower()
+    for k, url in TEAM_LOGOS.items():
+        if k in t:
+            return url
+    return "https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png"
 
 # ==========================================
 # ロト7 変換 & 計算コアロジック
@@ -185,9 +221,9 @@ def generate_ticket_1(stats, og_override_num=None):
 
     # 重複時の予備差し替え（⑧〜⑩）
     fallback_pool = [
-        stats.get("top_defender", 2), # ⑧ 守備最上位
-        14, 13, 18, 1,               # ⑨ 伝統枠 (アンリ, 優勝数, 創設年, 01)
-        stats.get("first_sub", 19)   # ⑩ ファースト・サブ
+        stats.get("top_defender", 2),
+        14, 13, 18, 1,
+        stats.get("first_sub", 19)
     ]
     
     fb_idx = 0
@@ -201,8 +237,7 @@ def generate_ticket_1(stats, og_override_num=None):
     return sorted(selected), log_details
 
 def generate_ticket_2():
-    """2口目：過去3年 AI統計分析型（黄金比・合計値・連番検証モデル）"""
-    # 統計上位母集団から黄金比率（奇数3:偶数4、合計115〜150、連番含む）を満たす組み合わせ
+    """2口目：過去3年 AI統計分析型"""
     patterns = [
         [4, 9, 13, 18, 22, 30, 31],
         [2, 7, 14, 19, 23, 30, 35],
@@ -219,10 +254,9 @@ def generate_ticket_qp():
 # FotMob データ取得（API / モック切り替え）
 # ==========================================
 def fetch_arsenal_match(match_id=""):
-    """FotMob等から試合データを取得（API未接続時は開幕節データを返す）"""
-    # サンプル/第1節 コヴェントリー戦 デフォルトデータ
     sample_data = {
         "match_id": "coventry_mw1",
+        "fotmob_url": "https://www.fotmob.com/teams/9825/fixtures/arsenal",
         "match_name": "Premier League MW1",
         "date": "2026-08-22",
         "match_day": 22,
@@ -231,14 +265,14 @@ def fetch_arsenal_match(match_id=""):
         "home_score": 3,
         "away_score": 0,
         "is_og": False,
-        "scorers": [29, 7, 8], # Havertz, Saka, Odegaard
-        "assist": 33,          # Calafiori
-        "goal_time": 15,       # 15分
-        "top_passer": 49,      # Lewis-Skelly (49 -> 12)
+        "scorers": [29, 7, 8],
+        "assist": 33,
+        "goal_time": 15,
+        "top_passer": 49,
         "shots": 20,
-        "possession": 64,      # 64 -> 27
-        "top_defender": 2,     # Saliba
-        "first_sub": 19        # Trossard
+        "possession": 64,
+        "top_defender": 2,
+        "first_sub": 19
     }
     
     if match_id.strip():
@@ -247,9 +281,7 @@ def fetch_arsenal_match(match_id=""):
             headers = {"User-Agent": "Mozilla/5.0"}
             res = requests.get(url, headers=headers, timeout=5)
             if res.status_code == 200:
-                # 実際のFotMobレスポンスをパースする構造（必要に応じて調整）
-                data = res.json()
-                # パース成功時は実データを返し、失敗時はサンプルを返す
+                sample_data["fotmob_url"] = f"https://www.fotmob.com/matches/{match_id.strip()}"
                 return sample_data
         except Exception:
             pass
@@ -260,9 +292,9 @@ def fetch_arsenal_match(match_id=""):
 # ==========================================
 st.markdown("""
 <div class="arsenal-header">
-    <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:22px;">🔴</span>
-        <span style="font-size:18px;">GUNNERS LOTO 7</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="30" height="30" style="object-fit:contain;">
+        <span style="font-size:18px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
     </div>
     <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">PL 2026-27</span>
 </div>
@@ -283,6 +315,8 @@ with tab1:
         fetch_btn = st.button("🔄 データ取得", use_container_width=True)
 
     match_data = fetch_arsenal_match(match_id_input)
+    home_logo = get_logo_url(match_data["home_team"])
+    away_logo = get_logo_url(match_data["away_team"])
 
     # スコアボード表示
     gd = match_data["home_score"] - match_data["away_score"]
@@ -295,18 +329,18 @@ with tab1:
             <span>{match_data['match_name']}</span>
             <span style="color:#34D399; font-weight:bold;">FT (試合終了)</span>
         </div>
-        <div style="display:flex; justify-content:space-around; align-items:center; margin:10px 0;">
-            <div style="text-align:center;">
-                <div style="font-size:26px;">🔴</div>
-                <div style="font-weight:bold; font-size:14px;">{match_data['home_team']}</div>
+        <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
+            <div style="text-align:center; width:90px;">
+                <img src="{home_logo}" width="54" height="54" style="object-fit:contain; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));">
+                <div style="font-weight:bold; font-size:14px; margin-top:6px;">{match_data['home_team']}</div>
             </div>
             <div style="text-align:center;">
-                <div style="font-size:32px; font-weight:900; letter-spacing:2px;">{match_data['home_score']} - {match_data['away_score']}</div>
-                <div style="font-size:11px; color:#64748B;">Date: {match_data['date']}</div>
+                <div style="font-size:34px; font-weight:900; letter-spacing:3px;">{match_data['home_score']} - {match_data['away_score']}</div>
+                <div style="font-size:11px; color:#94A3B8;">Date: {match_data['date']}</div>
             </div>
-            <div style="text-align:center;">
-                <div style="font-size:26px;">🔵</div>
-                <div style="font-weight:bold; font-size:14px;">{match_data['away_team']}</div>
+            <div style="text-align:center; width:90px;">
+                <img src="{away_logo}" width="54" height="54" style="object-fit:contain; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));">
+                <div style="font-weight:bold; font-size:14px; margin-top:6px;">{match_data['away_team']}</div>
             </div>
         </div>
         <div class="badge-win">
@@ -315,6 +349,9 @@ with tab1:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 試合データへの直通リンクボタン
+    st.link_button("🔗 FotMobで試合スタッツ詳細を見る", match_data["fotmob_url"], use_container_width=True)
 
     # オウンゴール手動補正オプション
     og_override = None
@@ -331,38 +368,36 @@ with tab1:
         t2_nums = generate_ticket_2()
         t3_nums = generate_ticket_qp()
 
-        # 1口目表示
         st.markdown("**1口目【マッチスタッツ連動型】**")
         balls_html_1 = "".join([f'<div class="loto-ball">{n:02d}</div>' for n in t1_nums])
         st.markdown(f'<div class="ball-container">{balls_html_1}</div>', unsafe_allow_html=True)
         st.caption(" ➔ " + " / ".join(t1_logs))
 
-        # 2口目表示（2口以上の場合）
         if tickets_count >= 2:
             st.markdown("**2口目【過去3年 AI統計分析型】**")
             balls_html_2 = "".join([f'<div class="loto-ball loto-ball-gold">{n:02d}</div>' for n in t2_nums])
             st.markdown(f'<div class="ball-container">{balls_html_2}</div>', unsafe_allow_html=True)
             st.caption(" ➔ 統計構成: 奇数3:偶数4 / 合計127 / 連番30-31")
 
-        # 3口目以降（クイックピック）
         if tickets_count >= 3:
             st.markdown("**3口目【クイックピック（QP）】**")
             balls_html_3 = "".join([f'<div class="loto-ball">{n:02d}</div>' for n in t3_nums])
             st.markdown(f'<div class="ball-container">{balls_html_3}</div>', unsafe_allow_html=True)
             st.caption(" ➔ 自動ランダム採番")
 
-        # コピペ用テキスト生成
+        # コピペ用テキスト（高コントラスト ＆ 右上1タップコピー対応）
         st.divider()
         copy_text = f"""【ロト7 購入シート】{match_data['match_name']}
 スコア: {match_data['home_team']} {match_data['home_score']} - {match_data['away_score']} {match_data['away_team']}
-購入口数: {tickets_count}口 ({total_cost}円)
+購入口数: {tickets_count}口 ({total_cost:,}円)
 1口目: {' '.join([f'{n:02d}' for n in t1_nums])}"""
         if tickets_count >= 2:
             copy_text += f"\n2口目: {' '.join([f'{n:02d}' for n in t2_nums])}"
         if tickets_count >= 3:
-            copy_text += f"\n3口目: クイックピック"
+            copy_text += f"\n3口目: {' '.join([f'{n:02d}' for n in t3_nums])} (QP)"
 
-        st.text_area("📋 購入用テキスト（長押しでコピー）", copy_text, height=110)
+        st.markdown("**📋 購入用テキスト（右上のアイコンで1タップコピー）**")
+        st.code(copy_text, language="text")
 
         # 履歴保存ボタン
         if st.button("💾 この試合を購入履歴に保存", use_container_width=True):
@@ -390,7 +425,6 @@ with tab1:
 with tab2:
     history = load_history()
     
-    # 累計計算
     total_spent = sum([item.get("cost", 0) for item in history])
     total_won = sum([item.get("hit_amount", 0) for item in history])
     net_balance = total_won - total_spent
