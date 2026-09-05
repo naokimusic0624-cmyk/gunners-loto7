@@ -187,7 +187,7 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# ロト7 採番ロジック（①〜⑩ 厳密順序＆重複排除）
+# ロト7 採番ロジック（①〜⑩ 厳密順序＆重複完全排除）
 # ==========================================
 def convert_to_loto_number(val):
     try:
@@ -204,12 +204,14 @@ def generate_ticket_1(stats):
 
     def try_add(val, label):
         if len(selected) >= 7:
-            return
+            return False
         num = convert_to_loto_number(val)
         if num not in selected:
             selected.append(num)
             orig = f"({val}➔{num:02d})" if int(val) > 37 else f"({num:02d})"
             log_details.append(f"{label}: {orig}")
+            return True
+        return False
 
     # ① 得点者全員の背番号
     for sc in stats.get("scorers", []):
@@ -241,7 +243,7 @@ def generate_ticket_1(stats):
     if stats.get("day"):
         try_add(stats["day"], "⑦開催日")
 
-    # ⑧ 守備陣最上位 / GK（評価点トップDF/GK）
+    # ⑧ 守備陣最上位 / GK（評価点トップDF/GK、重複時は次点の選手を順次探索）
     def_candidates = stats.get("def_gk_candidates", [2, 4, 6, 12, 1])
     for d_num in def_candidates:
         if len(selected) >= 7:
@@ -284,7 +286,7 @@ def generate_ticket_qp():
     return sorted(random.sample(range(1, 38), 7))
 
 # ==========================================
-# Webページ解析（⑤シュート数の正確な抽出強化版）
+# Webページ解析
 # ==========================================
 def fetch_from_fotmob_page(url_or_text, is_home):
     if not url_or_text:
@@ -358,11 +360,9 @@ def fetch_from_fotmob_page(url_or_text, is_home):
             if pnum and pid:
                 player_number_map[pid] = pnum
 
-        # シュート数とポゼッションの抽出ロジック強化
         shots = 15
         possession = 55
         
-        # 複数箇所のスタッツ構造を走査
         stats_sections = []
         if "stats" in content:
             if "Periods" in content["stats"]:
@@ -597,7 +597,7 @@ with tab1:
                     cur["first_sub_num"] = fetched["first_sub_num"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("シュート数を含む全スタッツを正常抽出・保存しました！")
+                    st.success("順序・重複排除を適用して正常に抽出・保存しました！")
                     st.rerun()
                 else:
                     st.error(err)
