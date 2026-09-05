@@ -168,40 +168,65 @@ ARSENAL_SQUAD_NUMBERS = {
 }
 
 # ==========================================
-# スマホ対応 Match ID 抽出パーサー
+# Webページ埋め込みデータ直接抽出パーサー
 # ==========================================
-def extract_match_id(text):
-    """PC・スマホWeb・アプリ共有テキストから6〜10桁のMatch IDを自動抽出"""
-    if not text:
-        return ""
-    # 共有テキストやURL全体から6〜10桁の数字を抽出
-    match = re.search(r'(\d{6,10})', str(text))
-    return match.group(1) if match else ""
+def fetch_from_fotmob_page(url_or_text, is_home):
+    """WebページのHTMLから埋め込みJSON（__NEXT_DATA__）を直接解析"""
+    if not url_or_text:
+        return None, "URLが入力されていません"
 
-def fetch_match_details_by_id(match_id, is_home):
-    """Match IDを指定してFotMobからスタッツを取得"""
-    url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
+    # URLクリーンアップ（ハッシュなどを除去）
+    clean_url = url_or_text.strip()
+    m_url = re.search(r'(https?://[^\s]+)', clean_url)
+    if m_url:
+        clean_url = m_url.group(1).split('#')[0]
+    else:
+        # 数字のみの場合は直接API URLを構成
+        m_id = re.search(r'(\d{6,10})', clean_url)
+        if m_id:
+            clean_url = f"https://www.fotmob.com/matches/{m_id.group(1)}"
+        else:
+            return None, "有効なFotMobのURLが見つかりませんでした"
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Referer": "https://www.fotmob.com/"
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        "Referer": "https://www.google.com/"
     }
+
     try:
-        res = requests.get(url, headers=headers, timeout=6)
+        res = requests.get(clean_url, headers=headers, timeout=8)
         if res.status_code != 200:
-            return None, f"FotMob通信エラー (HTTP {res.status_code})"
+            return None, f"ページ取得エラー (HTTP {res.status_code})"
 
-        m_data = res.json()
-        header = m_data.get("header", {})
+        html = res.text
+        # __NEXT_DATA__ スクリプトタグを抽出
+        json_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+        if not json_match:
+            return None, "試合データタグが見つかりませんでした"
+
+        next_data = json.loads(json_match.group(1))
+        page_props = next_data.get("props", {}).get("pageProps", {})
+        
+        # 試合データブロックを探索
+        content = page_props.get("content", {})
+        header = page_props.get("header", {})
+        general = page_props.get("general", {})
+
+        # スコア取得
         teams = header.get("teams", [])
-        if len(teams) < 2:
-            return None, "チーム情報を取得できませんでした"
-
-        h_sc = teams[0].get("score")
-        a_sc = teams[1].get("score")
+        if len(teams) >= 2:
+            h_sc = teams[0].get("score", 0)
+            a_sc = teams[1].get("score", 0)
+        else:
+            h_sc = 0
+            a_sc = 0
         is_finished = header.get("status", {}).get("finished", False)
 
+        # 選手背番号マップ作成
         player_number_map = {}
-        lineup = m_data.get("content", {}).get("lineup", {})
+        lineup = content.get("lineup", {})
         for side in ["homeTeam", "awayTeam"]:
             team_lineup = lineup.get(side, {})
             for p in team_lineup.get("starters", []) + team_lineup.get("subs", []):
@@ -210,7 +235,8 @@ def fetch_match_details_by_id(match_id, is_home):
                 if pid and shirt:
                     player_number_map[pid] = int(shirt)
 
-        events = m_data.get("content", {}).get("matchFacts", {}).get("events", {}).get("events", [])
+        # イベント（ゴール・アシスト）
+        events = content.get("matchFacts", {}).get("events", {}).get("events", [])
         scorers = []
         first_assist = None
         first_time = None
@@ -243,9 +269,10 @@ def fetch_match_details_by_id(match_id, is_home):
                                     first_assist = v
                                     break
 
+        # シュート数・支配率
         shots = 15
         possession = 55
-        stats_periods = m_data.get("content", {}).get("stats", {}).get("Periods", {}).get("All", {}).get("stats", [])
+        stats_periods = content.get("stats", {}).get("Periods", {}).get("All", {}).get("stats", [])
         ars_idx = 0 if is_home else 1
 
         for sec in stats_periods:
@@ -262,8 +289,10 @@ def fetch_match_details_by_id(match_id, is_home):
                         if s_str.isdigit():
                             shots = int(s_str)
 
+        match_id_found = str(general.get("matchId") or re.search(r'(\d{6,10})', clean_url).group(1) if re.search(r'(\d{6,10})', clean_url) else "")
+
         return {
-            "match_id": match_id,
+            "match_id": match_id_found,
             "h_score": int(h_sc) if h_sc is not None else 0,
             "a_score": int(a_sc) if a_sc is not None else 0,
             "is_finished": is_finished,
@@ -273,8 +302,9 @@ def fetch_match_details_by_id(match_id, is_home):
             "shots": shots,
             "possession": possession
         }, None
+
     except Exception as e:
-        return None, f"取得エラー: {str(e)[:30]}"
+        return None, f"解析エラー: {str(e)[:30]}"
 
 # ==========================================
 # ロト7 採番ロジック
@@ -410,14 +440,14 @@ with tab1:
     cur.setdefault("poss", 55)
     cur.setdefault("day", m.get("day", 1))
 
-    # スマホ対応 FotMobスタッツ自動同期バー
-    st.markdown("**⚡ FotMobスタッツ連携（スマホURL・アプリ共有対応）**")
+    # FotMobスタッツ連携（Web直接解析）
+    st.markdown("**⚡ FotMobスタッツ連携（Webページ直接解析）**")
     col_u1, col_u2 = st.columns([3, 1])
     with col_u1:
         user_url_input = st.text_input(
             "FotMob URLまたは共有テキスト",
             value="",
-            placeholder="FotMobのURL、アプリ共有文、またはIDを貼り付け",
+            placeholder="FotMobの試合URLを貼り付け（例: https://www.fotmob.com/...）",
             key=f"url_in_{round_num}",
             label_visibility="collapsed"
         )
@@ -425,10 +455,9 @@ with tab1:
         sync_clicked = st.button("🔄 自動取得", use_container_width=True)
 
     if sync_clicked:
-        target_mid = extract_match_id(user_url_input)
-        if target_mid:
-            with st.spinner("FotMobからスタッツを取得中..."):
-                fetched, err = fetch_match_details_by_id(target_mid, is_home)
+        if user_url_input:
+            with st.spinner("FotMobページからスタッツを抽出中..."):
+                fetched, err = fetch_from_fotmob_page(user_url_input, is_home)
                 if fetched:
                     cur["match_id"] = fetched["match_id"]
                     cur["h_score"] = fetched["h_score"]
@@ -444,13 +473,13 @@ with tab1:
                 else:
                     st.error(err)
         else:
-            st.warning("FotMobのURL、アプリの共有リンク、またはMatch IDを入力してください。")
+            st.warning("FotMobの試合URLを入力してください。")
 
     h_team = "アーセナルFC" if is_home else opp_name
     a_team = opp_name if is_home else "アーセナルFC"
 
-    # 手動調整アコーディオン
-    with st.expander("📝 スコア & スタッツ詳細（手動調整・OG補正）", expanded=False):
+    # 常時展開型スコア & スタッツ調整フォーム
+    with st.expander("📝 スコア & スタッツ詳細（手動補正・OG対応）", expanded=True):
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
@@ -503,9 +532,6 @@ with tab1:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    if cur.get("match_id"):
-        st.link_button("🔗 FotMobでこの試合の詳細ページを開く", f"https://www.fotmob.com/matches/{cur['match_id']}", use_container_width=True)
 
     t2_key = f"t2_{round_num}"
     if t2_key not in st.session_state:
@@ -568,7 +594,7 @@ with tab1:
         if has_result:
             st.info("引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
         else:
-            st.info("キックオフ前です。試合終了後にFotMobのURL/共有文を貼り付けて自動取得するか、手動入力してください。")
+            st.info("キックオフ前です。FotMobのURLから自動取得するか、上の入力フォームにスコアを入れてください。")
 
 # ==========================================
 # TAB 2: シーズン収支管理
