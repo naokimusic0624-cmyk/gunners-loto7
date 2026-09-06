@@ -597,16 +597,11 @@ with tab1:
         else:
             st.warning("FotMobの試合URLを入力してください。")
 
-    ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
-    opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
-    gd = ars_score - opp_score
-
-    has_result = cur.get("is_finished", False) or (cur.get("h_score", 0) > 0 or cur.get("a_score", 0) > 0)
-    tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
-    cost = tickets * 300
+    h_team = "アーセナルFC" if is_home else opp_name
+    a_team = opp_name if is_home else "アーセナルFC"
 
     # ==========================================
-    # 📝 スコア & スタッツ詳細（①〜⑩ 全手動補正 & 再判定ボタン）
+    # 📝 スコア & スタッツ詳細（①〜⑩ 全手動補正対応）
     # ==========================================
     with st.expander("📝 スコア & スタッツ詳細（①〜⑩ 手動補正・OG対応）", expanded=True):
         col_m1, col_m2 = st.columns(2)
@@ -616,7 +611,7 @@ with tab1:
             cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
 
         st.markdown("---")
-        st.caption("👇 ①〜⑩ の採番項目データを個別に手動修正できます")
+        st.caption("👇 ①〜コの採番項目データを個別に手動修正できます")
         
         col_s1, col_s2 = st.columns(2)
         with col_s1:
@@ -648,6 +643,14 @@ with tab1:
             save_match_data_to_file(round_num, cur)
             st.success("手動修正を反映して再判定しました！")
             st.rerun()
+
+    ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
+    opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
+    gd = ars_score - opp_score
+
+    has_result = cur.get("is_finished", False) or (cur.get("h_score", 0) > 0 or cur.get("a_score", 0) > 0)
+    tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
+    cost = tickets * 300
 
     st.markdown(f"""
     <div class="match-card">
