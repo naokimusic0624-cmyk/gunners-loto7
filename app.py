@@ -6,7 +6,7 @@ import os
 import random
 
 # ==========================================
-# ページ基本設定 & 洗練されたCSSデザイン
+# ページ基本設定 & モダンCSSデザイン
 # ==========================================
 st.set_page_config(
     page_title="Gunners Loto 7 (2026-27)",
@@ -17,132 +17,358 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 全体背景 & フォント */
-    .stApp {
-        background-color: #090D16;
-        color: #F1F5F9;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    
-    /* ヘッダーデザイン */
-    .arsenal-header {
-        background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
-        padding: 16px 24px;
-        border-radius: 14px;
-        color: white;
-        font-weight: 800;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        box-shadow: 0 10px 25px -5px rgba(220, 38, 38, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-    
-    /* 一般カードコンテナ */
-    .modern-card {
-        background-color: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        padding: 20px;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    :root {
+        --arsenal-red: #D71920;
+        --arsenal-red-dark: #B31319;
+        --ink: #111827;
+        --muted: #667085;
+        --line: #E5E7EB;
+        --surface: #FFFFFF;
+        --surface-soft: #F7F8FA;
+        --success: #067647;
+        --warning: #B54708;
+        --shadow: 0 8px 28px rgba(17, 24, 39, .08);
     }
 
-    /* スタッツ入力専用セクション（視認性を高めた明るめの専用カード） */
-    .stats-input-card {
-        background-color: #1E293B;
-        border: 1px solid #334155;
-        border-radius: 14px;
-        padding: 22px;
-        margin-bottom: 16px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    /* ===== App shell ===== */
+    .stApp {
+        background:
+            radial-gradient(circle at 12% 0%, rgba(215, 25, 32, .07), transparent 30%),
+            linear-gradient(180deg, #F8F9FB 0%, #F3F4F6 100%);
+        color: var(--ink);
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    .stats-input-card label {
-        color: #F8FAFC !important;
-        font-weight: 700 !important;
-        font-size: 13px !important;
+    .block-container {
+        max-width: 1040px;
+        padding-top: 2.1rem;
+        padding-bottom: 4rem;
     }
-    
-    /* ロトボールデザイン */
-    .ball-container {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin: 15px 0;
-    }
-    .loto-ball {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 900;
-        font-size: 17px;
-        color: #0F172A;
-        background: radial-gradient(circle at 35% 35%, #FFFFFF 0%, #CBD5E1 100%);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.8);
-        border: 2px solid #94A3B8;
-    }
-    .loto-ball-gold {
-        background: radial-gradient(circle at 35% 35%, #FDE68A 0%, #D97706 100%);
-        color: #451A03;
-        border: 2px solid #F59E0B;
-    }
-    
-    /* バッジ・ステータス */
-    .status-badge {
-        background: rgba(220, 38, 38, 0.15);
-        border: 1px solid rgba(220, 38, 38, 0.4);
-        color: #FCA5A5;
-        border-radius: 10px;
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 700;
+    #MainMenu, footer { visibility: hidden; }
+
+    /* ===== Hero ===== */
+    .arsenal-header {
+        position: relative;
+        overflow: hidden;
+        background: #111827;
+        padding: 22px 24px;
+        border-radius: 20px;
+        color: #FFFFFF;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 12px;
+        gap: 18px;
+        margin-bottom: 18px;
+        box-shadow: 0 14px 35px rgba(17, 24, 39, .16);
     }
-    
-    /* タブの洗練 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #111827;
+    .arsenal-header::after {
+        content: "";
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        right: -75px;
+        top: -120px;
+        border-radius: 999px;
+        background: var(--arsenal-red);
+        opacity: .92;
+    }
+    .brand-wrap {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .brand-logo {
+        width: 46px;
+        height: 46px;
         padding: 6px;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        object-fit: contain;
+        border-radius: 14px;
+        background: #FFFFFF;
+    }
+    .brand-eyebrow {
+        color: #D1D5DB;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+    .brand-title {
+        font-size: 22px;
+        line-height: 1.1;
+        font-weight: 900;
+        letter-spacing: .02em;
+    }
+    .season-pill {
+        position: relative;
+        z-index: 1;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: #FFFFFF;
+        font-size: 12px;
+        font-weight: 800;
+        backdrop-filter: blur(8px);
+    }
+
+    /* ===== Tabs ===== */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 5px;
+        background: #E9EAED;
+        padding: 5px;
+        border-radius: 14px;
+        margin-bottom: 18px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        color: #94A3B8;
-        font-weight: 600;
+        min-height: 42px;
+        flex: 1;
+        justify-content: center;
+        border-radius: 10px;
+        color: #4B5563;
+        font-weight: 800;
         padding: 8px 16px;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #DC2626 !important;
-        color: white !important;
+        background: #FFFFFF !important;
+        color: #111827 !important;
+        box-shadow: 0 2px 8px rgba(17, 24, 39, .08);
+    }
+    .stTabs [data-baseweb="tab-highlight"] { display: none; }
+
+    /* ===== Generic cards ===== */
+    .modern-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 22px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+    .section-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--arsenal-red);
+        background: #FFF1F2;
+        border: 1px solid #FFD6DA;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+    .section-title {
+        margin-top: 8px;
+        color: var(--ink);
+        font-size: 18px;
+        font-weight: 900;
+    }
+    .section-copy {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
     }
 
-    /* 入力フォームの視認性向上 */
-    div[data-baseweb="select"] > div, div[data-baseweb="input"] input, div[data-baseweb="base-input"] input {
-        background-color: #0F172A !important;
-        border-color: #475569 !important;
-        color: #FFFFFF !important;
-        border-radius: 8px !important;
+    /* ===== Form controls ===== */
+    .stSelectbox label, .stTextInput label, .stNumberInput label {
+        color: #344054 !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
     }
-    
-    /* ボタンの立体感とホバー */
-    .stButton>button {
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="input"] input,
+    .stTextInput input,
+    .stNumberInput input {
+        background: #FFFFFF !important;
+        border-color: #D0D5DD !important;
+        color: #101828 !important;
         border-radius: 10px !important;
-        font-weight: 700 !important;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .stButton>button:hover {
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-baseweb="input"] > div:focus-within {
+        border-color: var(--arsenal-red) !important;
+        box-shadow: 0 0 0 3px rgba(215, 25, 32, .10) !important;
+    }
+    [data-baseweb="popover"] { color: #101828 !important; }
+
+    /* ===== Buttons ===== */
+    .stButton > button {
+        min-height: 42px;
+        border-radius: 10px !important;
+        border: 1px solid #D0D5DD !important;
+        background: #FFFFFF !important;
+        color: #344054 !important;
+        font-weight: 850 !important;
+        box-shadow: 0 1px 2px rgba(16,24,40,.04);
+        transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .stButton > button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        border-color: #98A2B3 !important;
+        color: #101828 !important;
+        box-shadow: 0 5px 14px rgba(16,24,40,.08);
+    }
+    .stButton > button[kind="primary"] {
+        background: var(--arsenal-red) !important;
+        border-color: var(--arsenal-red) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* Auto-sync is the most prominent action in the first card */
+    div[data-testid="stHorizontalBlock"] .stButton > button:has(p) {
+        font-weight: 850 !important;
+    }
+
+    /* ===== Expanders ===== */
+    details[data-testid="stExpander"] {
+        background: #FFFFFF;
+        border: 1px solid var(--line) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 16px rgba(17,24,39,.045);
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+    details[data-testid="stExpander"] summary {
+        padding: 5px 4px;
+        color: #101828;
+        font-weight: 850;
+    }
+
+    /* ===== Match card ===== */
+    .match-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #EEF0F2;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+    }
+    .match-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 6px 9px;
+        font-weight: 900;
+    }
+    .status-finished { color: var(--success); background: #ECFDF3; }
+    .status-upcoming { color: var(--warning); background: #FFFAEB; }
+    .score-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 20px;
+        padding: 24px 0 18px;
+    }
+    .team-name {
+        color: #101828;
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.3;
+    }
+    .team-name:last-child { text-align: right; }
+    .score-main {
+        color: #101828;
+        font-size: 42px;
+        font-weight: 950;
+        letter-spacing: .02em;
+        line-height: 1;
+        text-align: center;
+    }
+    .score-label {
+        margin-top: 5px;
+        color: #98A2B3;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-align: center;
+    }
+    .status-badge {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 4px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 800;
+    }
+    .status-badge span {
+        background: #F8F9FB;
+        border: 1px solid #EAECF0;
+        border-radius: 12px;
+        padding: 11px 13px;
+    }
+    .status-badge span:last-child { text-align: right; }
+
+    /* ===== Loto balls ===== */
+    .ball-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 9px;
+        margin: 14px 0 8px;
+    }
+    .loto-ball {
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #101828;
+        background: #F2F4F7;
+        border: 1px solid #D0D5DD;
+        box-shadow: inset 0 -2px 0 rgba(16,24,40,.05);
+        font-size: 16px;
+        font-weight: 950;
+        font-variant-numeric: tabular-nums;
+    }
+    .loto-ball-gold {
+        color: #7A2E0E;
+        background: #FFFAEB;
+        border-color: #FEDF89;
+    }
+
+    /* ===== Code / info / metrics ===== */
+    .stCodeBlock pre {
+        border: 1px solid #D0D5DD !important;
+        border-radius: 12px !important;
+        background: #111827 !important;
+    }
+    div[data-testid="stAlert"] {
+        border-radius: 12px;
+        border-width: 1px;
+    }
+    .stCaption, [data-testid="stCaptionContainer"] {
+        color: #667085 !important;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 720px) {
+        .block-container { padding: 1rem .8rem 3rem; }
+        .arsenal-header { padding: 18px; align-items: flex-start; }
+        .brand-title { font-size: 18px; }
+        .brand-logo { width: 40px; height: 40px; }
+        .season-pill { font-size: 10px; padding: 6px 9px; }
+        .modern-card { padding: 16px; border-radius: 15px; }
+        .score-grid { gap: 10px; }
+        .team-name { font-size: 13px; }
+        .score-main { font-size: 34px; }
+        .status-badge { grid-template-columns: 1fr; }
+        .status-badge span:last-child { text-align: left; }
+        .loto-ball { width: 42px; height: 42px; font-size: 15px; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -545,17 +771,21 @@ saved_matches = load_saved_matches()
 
 st.markdown("""
 <div class="arsenal-header">
-    <div style="display:flex; align-items:center; gap:12px;">
-        <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="34" height="34" style="object-fit:contain;">
-        <span style="font-size:20px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
+    <div class="brand-wrap">
+        <img class="brand-logo" src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png">
+        <div>
+            <div class="brand-eyebrow">Matchday Number Lab</div>
+            <div class="brand-title">GUNNERS LOTO 7</div>
+        </div>
     </div>
-    <span style="background:rgba(0,0,0,0.3); padding:5px 12px; border-radius:20px; font-size:12px; border:1px solid #F87171;">Premier League 2026-27</span>
+    <div class="season-pill">● PREMIER LEAGUE&nbsp;&nbsp;2026–27</div>
 </div>
 """, unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["⚽ 試合 & ナンバー算出", "📊 シーズン収支管理"])
 
 with tab1:
+    # 試合選択セクション
     labels = []
     for item in SCHEDULE_2026_27:
         r = item["round"]
@@ -613,7 +843,7 @@ with tab1:
 
     # FotMob自動取得連携カード
     st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-    st.markdown("**⚡ FotMobスタッツ自動連携**")
+    st.markdown("""<span class="section-kicker">DATA SYNC</span><div class="section-title">FotMobスタッツ自動連携</div><div class="section-copy">試合ページのURLを貼り付けると、スコアと主要スタッツを取得してこの節に反映します。</div>""", unsafe_allow_html=True)
     col_u1, col_u2 = st.columns([3, 1])
     with col_u1:
         user_url_input = st.text_input(
@@ -653,49 +883,45 @@ with tab1:
             st.warning("URLを入力してください。")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 📝 スコア & スタッツ詳細（リデザインされた高視認性カード）
-    st.markdown('<div class="stats-input-card">', unsafe_allow_html=True)
-    st.markdown("<div style='font-size:16px; font-weight:800; color:#F8FAFC; margin-bottom:14px;'>📝 スコア & スタッツ詳細（①〜⑩ 手動補正・再判定）</div>", unsafe_allow_html=True)
-    
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
-    with col_m2:
-        cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
+    # 📝 スコア & スタッツ詳細（手動補正）
+    with st.expander("📝 スコア & スタッツ詳細（①〜⑩ 手動補正・再判定）", expanded=False):
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
+        with col_m2:
+            cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
 
-    st.markdown("<div style='margin: 12px 0; border-top: 1px solid #334155;'></div>", unsafe_allow_html=True)
-    
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
-        scorers_input = st.text_input("① 得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
-        cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
+        st.markdown("---")
         
-        cur["assist"] = st.number_input("② 先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
-        cur["goal_time"] = st.number_input("③ 先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
-        cur["passer"] = st.number_input("④ パス成功数1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
-        cur["shots"] = st.number_input("⑤ チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
+            scorers_input = st.text_input("① 得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
+            cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
+            
+            cur["assist"] = st.number_input("② 先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
+            cur["goal_time"] = st.number_input("③ 先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
+            cur["passer"] = st.number_input("④ パス成功数1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
+            cur["shots"] = st.number_input("⑤ チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
 
-    with col_s2:
-        cur["poss"] = st.number_input("⑥ ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
-        cur["day"] = st.number_input("⑦ 試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", m.get("day", 1))), key=f"day_{round_num}")
-        
-        def_cands_str = ", ".join([str(n) for n in cur.get("def_gk_candidates", [2, 4, 6, 12, 1])])
-        def_input = st.text_input("⑧ 最高評価DF/GK候補（優先順）", value=def_cands_str, key=f"def_{round_num}")
-        cur["def_gk_candidates"] = [int(s.strip()) for s in def_input.split(",") if s.strip().isdigit()]
+        with col_s2:
+            cur["poss"] = st.number_input("⑥ ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
+            cur["day"] = st.number_input("⑦ 試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", m.get("day", 1))), key=f"day_{round_num}")
+            
+            def_cands_str = ", ".join([str(n) for n in cur.get("def_gk_candidates", [2, 4, 6, 12, 1])])
+            def_input = st.text_input("⑧ 最高評価DF/GK候補（優先順）", value=def_cands_str, key=f"def_{round_num}")
+            cur["def_gk_candidates"] = [int(s.strip()) for s in def_input.split(",") if s.strip().isdigit()]
 
-        trad_str = ", ".join([str(n) for n in cur.get("tradition_candidates", [14, 13, 18, 1])])
-        trad_input = st.text_input("⑨ クラブ伝統枠（順序）", value=trad_str, key=f"trad_{round_num}")
-        cur["tradition_candidates"] = [int(s.strip()) for s in trad_input.split(",") if s.strip().isdigit()]
+            trad_str = ", ".join([str(n) for n in cur.get("tradition_candidates", [14, 13, 18, 1])])
+            trad_input = st.text_input("⑨ クラブ伝統枠（順序）", value=trad_str, key=f"trad_{round_num}")
+            cur["tradition_candidates"] = [int(s.strip()) for s in trad_input.split(",") if s.strip().isdigit()]
 
-        cur["first_sub"] = st.number_input("⑩ ファースト・サブ 背番号", min_value=1, max_value=99, value=int(cur.get("first_sub", 56)), key=f"sub_{round_num}")
+            cur["first_sub"] = st.number_input("⑩ ファースト・サブ 背番号", min_value=1, max_value=99, value=int(cur.get("first_sub", 56)), key=f"sub_{round_num}")
 
-    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-    if st.button("🔄 番号を再判定する", use_container_width=True):
-        save_match_data_to_file(round_num, cur)
-        st.success("再判定しました！")
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("🔄 番号を再判定する", use_container_width=True):
+            save_match_data_to_file(round_num, cur)
+            st.success("再判定しました！")
+            st.rerun()
 
     ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
     opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
@@ -708,25 +934,23 @@ with tab1:
     # 試合概要カード
     st.markdown(f"""
     <div class="modern-card">
-        <div style="display:flex; justify-content:space-between; font-size:12px; color:#94A3B8; margin-bottom:8px;">
-            <span>Premier League 2026-27 • 第{round_num}節</span>
-            <span style="color:{'#34D399' if cur.get('is_finished', False) else '#F59E0B'}; font-weight:bold;">
-                {'■ 試合終了 (FT)' if cur.get('is_finished', False) else '□ キックオフ前'}
+        <div class="match-meta">
+            <span>PREMIER LEAGUE 2026–27 ・ 第{round_num}節</span>
+            <span class="match-status {'status-finished' if cur.get('is_finished', False) else 'status-upcoming'}">
+                {'● 試合終了  FT' if cur.get('is_finished', False) else '● キックオフ前'}
             </span>
         </div>
-        <div style="display:flex; justify-content:space-around; align-items:center; margin:16px 0;">
-            <div style="text-align:center; width:130px; font-weight:800; font-size:16px;">{h_team}</div>
-            <div style="text-align:center;">
-                <div style="font-size:38px; font-weight:900; letter-spacing:3px; color:#F8FAFC;">
-                    {f"{cur.get('h_score', 0)} - {cur.get('a_score', 0)}" if has_result else "VS"}
-                </div>
-                <div style="font-size:11px; color:#64748B; margin-top:2px;">{'HOME' if is_home else 'AWAY'}</div>
+        <div class="score-grid">
+            <div class="team-name">{h_team}</div>
+            <div>
+                <div class="score-main">{f"{cur.get('h_score', 0)} – {cur.get('a_score', 0)}" if has_result else "VS"}</div>
+                <div class="score-label">{'HOME' if is_home else 'AWAY'}</div>
             </div>
-            <div style="text-align:center; width:130px; font-weight:800; font-size:16px;">{a_team}</div>
+            <div class="team-name">{a_team}</div>
         </div>
         <div class="status-badge">
-            <span>🎯 得失点差: {'+' if gd > 0 else ''}{gd}点差</span>
-            <span>🛒 購入口数: {tickets}口 ({cost:,}円)</span>
+            <span>得失点差&nbsp;&nbsp;<strong>{'+' if gd > 0 else ''}{gd}</strong></span>
+            <span>購入予定&nbsp;&nbsp;<strong>{tickets}口 ・ {cost:,}円</strong></span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -821,14 +1045,15 @@ with tab2:
 
     st.markdown(f"""
     <div class="modern-card">
-        <div style="font-size:12px; color:#94A3B8;">2026-27 SEASON OVERVIEW (収支概要)</div>
-        <div style="font-size:30px; font-weight:900; color:{'#34D399' if net_balance >= 0 else '#F87171'}; margin:8px 0;">
+        <span class="section-kicker">SEASON OVERVIEW</span>
+        <div style="margin-top:10px; color:#667085; font-size:12px; font-weight:800;">2026–27 収支</div>
+        <div style="font-size:36px; font-weight:950; color:{'#067647' if net_balance >= 0 else '#B42318'}; margin:4px 0 16px; font-variant-numeric:tabular-nums;">
             {'+' if net_balance > 0 else ''}{net_balance:,} 円
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:13px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px; color:#94A3B8;">
-            <span>総投資: <strong style="color:#F8FAFC;">-{total_spent:,}円</strong></span>
-            <span>総回収: <strong style="color:#F8FAFC;">+{total_won:,}円</strong></span>
-            <span>回収率: <strong style="color:#F8FAFC;">{roi:.1f}%</strong></span>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; border-top:1px solid #EAECF0; padding-top:14px; color:#667085; font-size:12px;">
+            <span>総投資<br><strong style="color:#101828; font-size:15px;">-{total_spent:,}円</strong></span>
+            <span>総回収<br><strong style="color:#101828; font-size:15px;">+{total_won:,}円</strong></span>
+            <span>回収率<br><strong style="color:#101828; font-size:15px;">{roi:.1f}%</strong></span>
         </div>
     </div>
     """, unsafe_allow_html=True)
