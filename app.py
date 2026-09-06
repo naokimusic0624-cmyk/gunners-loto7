@@ -6,7 +6,7 @@ import os
 import random
 
 # ==========================================
-# ページ基本設定 & モダンCSSデザイン
+# ページ基本設定 & 洗練されたCSSデザイン
 # ==========================================
 st.set_page_config(
     page_title="Gunners Loto 7 (2026-27)",
@@ -39,7 +39,7 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.15);
     }
     
-    /* カードコンテナ */
+    /* 一般カードコンテナ */
     .modern-card {
         background-color: #111827;
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -47,6 +47,21 @@ st.markdown("""
         padding: 20px;
         margin-bottom: 16px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    /* スタッツ入力専用セクション（視認性を高めた明るめの専用カード） */
+    .stats-input-card {
+        background-color: #1E293B;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    .stats-input-card label {
+        color: #F8FAFC !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
     }
     
     /* ロトボールデザイン */
@@ -111,10 +126,10 @@ st.markdown("""
     }
 
     /* 入力フォームの視認性向上 */
-    div[data-baseweb="select"] > div, div[data-baseweb="input"] input {
-        background-color: #1F2937 !important;
-        border-color: #374151 !important;
-        color: #F9FAFB !important;
+    div[data-baseweb="select"] > div, div[data-baseweb="input"] input, div[data-baseweb="base-input"] input {
+        background-color: #0F172A !important;
+        border-color: #475569 !important;
+        color: #FFFFFF !important;
         border-radius: 8px !important;
     }
     
@@ -541,7 +556,6 @@ st.markdown("""
 tab1, tab2 = st.tabs(["⚽ 試合 & ナンバー算出", "📊 シーズン収支管理"])
 
 with tab1:
-    # 試合選択セクション
     labels = []
     for item in SCHEDULE_2026_27:
         r = item["round"]
@@ -639,45 +653,49 @@ with tab1:
             st.warning("URLを入力してください。")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 📝 スコア & スタッツ詳細（手動補正）
-    with st.expander("📝 スコア & スタッツ詳細（①〜⑩ 手動補正・再判定）", expanded=False):
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
-        with col_m2:
-            cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
+    # 📝 スコア & スタッツ詳細（リデザインされた高視認性カード）
+    st.markdown('<div class="stats-input-card">', unsafe_allow_html=True)
+    st.markdown("<div style='font-size:16px; font-weight:800; color:#F8FAFC; margin-bottom:14px;'>📝 スコア & スタッツ詳細（①〜⑩ 手動補正・再判定）</div>", unsafe_allow_html=True)
+    
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
+    with col_m2:
+        cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
 
-        st.markdown("---")
+    st.markdown("<div style='margin: 12px 0; border-top: 1px solid #334155;'></div>", unsafe_allow_html=True)
+    
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
+        scorers_input = st.text_input("① 得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
+        cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
         
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            sc_str = ", ".join([str(n) for n in cur.get("scorers", [7])])
-            scorers_input = st.text_input("① 得点者 背番号（カンマ区切り）", value=sc_str, key=f"sc_{round_num}")
-            cur["scorers"] = [int(s.strip()) for s in scorers_input.split(",") if s.strip().isdigit()]
-            
-            cur["assist"] = st.number_input("② 先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
-            cur["goal_time"] = st.number_input("③ 先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
-            cur["passer"] = st.number_input("④ パス成功数1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
-            cur["shots"] = st.number_input("⑤ チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
+        cur["assist"] = st.number_input("② 先制アシスト 背番号", min_value=0, max_value=99, value=int(cur.get("assist", 8)), key=f"asst_{round_num}")
+        cur["goal_time"] = st.number_input("③ 先制ゴール時間（分）", min_value=1, max_value=120, value=int(cur.get("goal_time", 20)), key=f"gt_{round_num}")
+        cur["passer"] = st.number_input("④ パス成功数1位 背番号", min_value=1, max_value=99, value=int(cur.get("passer", 49)), key=f"pass_{round_num}")
+        cur["shots"] = st.number_input("⑤ チーム総シュート数", min_value=0, value=int(cur.get("shots", 15)), key=f"sh_{round_num}")
 
-        with col_s2:
-            cur["poss"] = st.number_input("⑥ ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
-            cur["day"] = st.number_input("⑦ 試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", m.get("day", 1))), key=f"day_{round_num}")
-            
-            def_cands_str = ", ".join([str(n) for n in cur.get("def_gk_candidates", [2, 4, 6, 12, 1])])
-            def_input = st.text_input("⑧ 最高評価DF/GK候補（優先順）", value=def_cands_str, key=f"def_{round_num}")
-            cur["def_gk_candidates"] = [int(s.strip()) for s in def_input.split(",") if s.strip().isdigit()]
+    with col_s2:
+        cur["poss"] = st.number_input("⑥ ボール支配率 (%)", min_value=0, max_value=100, value=int(cur.get("poss", 55)), key=f"poss_{round_num}")
+        cur["day"] = st.number_input("⑦ 試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", m.get("day", 1))), key=f"day_{round_num}")
+        
+        def_cands_str = ", ".join([str(n) for n in cur.get("def_gk_candidates", [2, 4, 6, 12, 1])])
+        def_input = st.text_input("⑧ 最高評価DF/GK候補（優先順）", value=def_cands_str, key=f"def_{round_num}")
+        cur["def_gk_candidates"] = [int(s.strip()) for s in def_input.split(",") if s.strip().isdigit()]
 
-            trad_str = ", ".join([str(n) for n in cur.get("tradition_candidates", [14, 13, 18, 1])])
-            trad_input = st.text_input("⑨ クラブ伝統枠（順序）", value=trad_str, key=f"trad_{round_num}")
-            cur["tradition_candidates"] = [int(s.strip()) for s in trad_input.split(",") if s.strip().isdigit()]
+        trad_str = ", ".join([str(n) for n in cur.get("tradition_candidates", [14, 13, 18, 1])])
+        trad_input = st.text_input("⑨ クラブ伝統枠（順序）", value=trad_str, key=f"trad_{round_num}")
+        cur["tradition_candidates"] = [int(s.strip()) for s in trad_input.split(",") if s.strip().isdigit()]
 
-            cur["first_sub"] = st.number_input("⑩ ファースト・サブ 背番号", min_value=1, max_value=99, value=int(cur.get("first_sub", 56)), key=f"sub_{round_num}")
+        cur["first_sub"] = st.number_input("⑩ ファースト・サブ 背番号", min_value=1, max_value=99, value=int(cur.get("first_sub", 56)), key=f"sub_{round_num}")
 
-        if st.button("🔄 番号を再判定する", use_container_width=True):
-            save_match_data_to_file(round_num, cur)
-            st.success("再判定しました！")
-            st.rerun()
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    if st.button("🔄 番号を再判定する", use_container_width=True):
+        save_match_data_to_file(round_num, cur)
+        st.success("再判定しました！")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
     opp_score = cur.get("a_score", 0) if is_home else cur.get("h_score", 0)
