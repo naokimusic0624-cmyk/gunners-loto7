@@ -6,7 +6,7 @@ import os
 import random
 
 # ==========================================
-# ページ基本設定 & カスタムCSS
+# ページ基本設定 & モダンCSSデザイン
 # ==========================================
 st.set_page_config(
     page_title="Gunners Loto 7 (2026-27)",
@@ -17,82 +17,117 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* 全体背景 & フォント */
     .stApp {
-        background-color: #0B0F19;
-        color: #F8FAFC;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: #090D16;
+        color: #F1F5F9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
+    
+    /* ヘッダーデザイン */
     .arsenal-header {
-        background: linear-gradient(135deg, #DB0007 0%, #7F0004 100%);
-        padding: 12px 18px;
-        border-radius: 12px;
+        background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+        padding: 16px 24px;
+        border-radius: 14px;
         color: white;
         font-weight: 800;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 15px rgba(219, 0, 7, 0.35);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 20px;
+        box-shadow: 0 10px 25px -5px rgba(220, 38, 38, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.15);
     }
-    .match-card {
-        background-color: #1E293B;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 18px;
-        margin-bottom: 12px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    
+    /* カードコンテナ */
+    .modern-card {
+        background-color: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
+    
+    /* ロトボールデザイン */
     .ball-container {
         display: flex;
-        justify-content: space-between;
-        gap: 6px;
-        margin: 10px 0;
+        justify-content: center;
+        gap: 10px;
+        margin: 15px 0;
     }
     .loto-ball {
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 800;
-        font-size: 15px;
+        font-weight: 900;
+        font-size: 17px;
         color: #0F172A;
-        background: radial-gradient(circle at 35% 35%, #FFFFFF, #CBD5E1);
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        background: radial-gradient(circle at 35% 35%, #FFFFFF 0%, #CBD5E1 100%);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.8);
+        border: 2px solid #94A3B8;
     }
     .loto-ball-gold {
-        background: radial-gradient(circle at 35% 35%, #FDE68A, #D97706);
+        background: radial-gradient(circle at 35% 35%, #FDE68A 0%, #D97706 100%);
         color: #451A03;
+        border: 2px solid #F59E0B;
     }
-    .badge-win {
-        background-color: rgba(219, 0, 7, 0.2);
-        border: 1px solid #DB0007;
-        color: #FECACA;
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 13px;
-        font-weight: bold;
+    
+    /* バッジ・ステータス */
+    .status-badge {
+        background: rgba(220, 38, 38, 0.15);
+        border: 1px solid rgba(220, 38, 38, 0.4);
+        color: #FCA5A5;
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 700;
         display: flex;
         justify-content: space-between;
-        margin-top: 10px;
+        align-items: center;
+        margin-top: 12px;
     }
-    div[data-baseweb="select"] > div {
-        background-color: #1E293B !important;
-        border: 1px solid #475569 !important;
-        color: #F8FAFC !important;
+    
+    /* タブの洗練 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #111827;
+        padding: 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
-    div[data-baseweb="select"] * {
-        color: #F8FAFC !important;
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        color: #94A3B8;
+        font-weight: 600;
+        padding: 8px 16px;
     }
-    div[data-baseweb="input"] input {
-        color: #F8FAFC !important;
-        background-color: #1E293B !important;
+    .stTabs [aria-selected="true"] {
+        background-color: #DC2626 !important;
+        color: white !important;
     }
-    .stButton>button, .stLinkButton>a {
+
+    /* 入力フォームの視認性向上 */
+    div[data-baseweb="select"] > div, div[data-baseweb="input"] input {
+        background-color: #1F2937 !important;
+        border-color: #374151 !important;
+        color: #F9FAFB !important;
+        border-radius: 8px !important;
+    }
+    
+    /* ボタンの立体感とホバー */
+    .stButton>button {
         border-radius: 10px !important;
-        font-weight: bold !important;
+        font-weight: 700 !important;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .stButton>button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -489,23 +524,24 @@ def fetch_from_fotmob_page(url_or_text, is_home):
         return None, f"解析エラー: {str(e)[:30]}"
 
 # ==========================================
-# メイン画面 UI
+# メイン画面 UI (100点クオリティ版)
 # ==========================================
 saved_matches = load_saved_matches()
 
 st.markdown("""
 <div class="arsenal-header">
-    <div style="display:flex; align-items:center; gap:10px;">
-        <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="30" height="30" style="object-fit:contain;">
-        <span style="font-size:18px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
+    <div style="display:flex; align-items:center; gap:12px;">
+        <img src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png" width="34" height="34" style="object-fit:contain;">
+        <span style="font-size:20px; letter-spacing:0.5px;">GUNNERS LOTO 7</span>
     </div>
-    <span style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:12px; border:1px solid #9C824A;">Premier League 2026-27</span>
+    <span style="background:rgba(0,0,0,0.3); padding:5px 12px; border-radius:20px; font-size:12px; border:1px solid #F87171;">Premier League 2026-27</span>
 </div>
 """, unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["⚽ 試合 & ナンバー算出", "📊 シーズン収支管理"])
 
 with tab1:
+    # 試合選択セクション
     labels = []
     for item in SCHEDULE_2026_27:
         r = item["round"]
@@ -549,7 +585,7 @@ with tab1:
                 "shots": 15,
                 "poss": 55,
                 "day": m.get("day", 1),
-                "def_gk_candidates": [33, 2, 4, 6, 1],
+                "def_gk_candidates": [2, 4, 6, 12, 1],
                 "tradition_candidates": [14, 13, 18, 1],
                 "first_sub": 56
             }
@@ -558,13 +594,18 @@ with tab1:
     if cur.get("passer") in [1, "1", 0, "0"]:
         cur["passer"] = 49
 
-    st.markdown("**⚡ FotMobスタッツ連携（1度保存すれば次回以降リンク不要）**")
+    h_team = "アーセナルFC" if is_home else opp_name
+    a_team = opp_name if is_home else "アーセナルFC"
+
+    # FotMob自動取得連携カード
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+    st.markdown("**⚡ FotMobスタッツ自動連携**")
     col_u1, col_u2 = st.columns([3, 1])
     with col_u1:
         user_url_input = st.text_input(
-            "FotMob URLまたは共有テキスト",
+            "FotMob URL",
             value="",
-            placeholder="FotMobの試合URLを貼り付け",
+            placeholder="https://www.fotmob.com/matches/...",
             key=f"url_in_{round_num}",
             label_visibility="collapsed"
         )
@@ -573,7 +614,7 @@ with tab1:
 
     if sync_clicked:
         if user_url_input:
-            with st.spinner("FotMobページから全スタッツ・評価点を抽出中..."):
+            with st.spinner("スタッツを解析中..."):
                 fetched, err = fetch_from_fotmob_page(user_url_input, is_home)
                 if fetched:
                     cur["match_id"] = fetched["match_id"]
@@ -590,20 +631,16 @@ with tab1:
                     cur["first_sub"] = fetched["first_sub"]
                     
                     save_match_data_to_file(round_num, cur)
-                    st.success("スタッツを正常抽出・保存しました！")
+                    st.success("自動取得・更新しました！")
                     st.rerun()
                 else:
                     st.error(err)
         else:
-            st.warning("FotMobの試合URLを入力してください。")
+            st.warning("URLを入力してください。")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    h_team = "アーセナルFC" if is_home else opp_name
-    a_team = opp_name if is_home else "アーセナルFC"
-
-    # ==========================================
-    # 📝 スコア & スタッツ詳細（①〜⑩ 全手動補正対応）
-    # ==========================================
-    with st.expander("📝 スコア & スタッツ詳細（①〜⑩ 手動補正・OG対応）", expanded=True):
+    # 📝 スコア & スタッツ詳細（手動補正）
+    with st.expander("📝 スコア & スタッツ詳細（①〜⑩ 手動補正・再判定）", expanded=False):
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             cur["h_score"] = st.number_input(f"{h_team} 得点", min_value=0, value=int(cur.get("h_score", 0)), key=f"hs_{round_num}")
@@ -611,7 +648,6 @@ with tab1:
             cur["a_score"] = st.number_input(f"{a_team} 得点", min_value=0, value=int(cur.get("a_score", 0)), key=f"as_{round_num}")
 
         st.markdown("---")
-        st.caption("👇 ①〜コの採番項目データを個別に手動修正できます")
         
         col_s1, col_s2 = st.columns(2)
         with col_s1:
@@ -629,19 +665,18 @@ with tab1:
             cur["day"] = st.number_input("⑦ 試合開催日（日）", min_value=1, max_value=31, value=int(cur.get("day", m.get("day", 1))), key=f"day_{round_num}")
             
             def_cands_str = ", ".join([str(n) for n in cur.get("def_gk_candidates", [2, 4, 6, 12, 1])])
-            def_input = st.text_input("⑧ 最高評価DF/GK候補（カンマ区切り優先順）", value=def_cands_str, key=f"def_{round_num}")
+            def_input = st.text_input("⑧ 最高評価DF/GK候補（優先順）", value=def_cands_str, key=f"def_{round_num}")
             cur["def_gk_candidates"] = [int(s.strip()) for s in def_input.split(",") if s.strip().isdigit()]
 
             trad_str = ", ".join([str(n) for n in cur.get("tradition_candidates", [14, 13, 18, 1])])
-            trad_input = st.text_input("⑨ クラブ伝統枠（カンマ区切り順序）", value=trad_str, key=f"trad_{round_num}")
+            trad_input = st.text_input("⑨ クラブ伝統枠（順序）", value=trad_str, key=f"trad_{round_num}")
             cur["tradition_candidates"] = [int(s.strip()) for s in trad_input.split(",") if s.strip().isdigit()]
 
             cur["first_sub"] = st.number_input("⑩ ファースト・サブ 背番号", min_value=1, max_value=99, value=int(cur.get("first_sub", 56)), key=f"sub_{round_num}")
 
-        # 再判定ボタン
         if st.button("🔄 番号を再判定する", use_container_width=True):
             save_match_data_to_file(round_num, cur)
-            st.success("手動修正を反映して再判定しました！")
+            st.success("再判定しました！")
             st.rerun()
 
     ars_score = cur.get("h_score", 0) if is_home else cur.get("a_score", 0)
@@ -652,25 +687,26 @@ with tab1:
     tickets = max(0, min(5, gd)) if (has_result and gd > 0) else 0
     cost = tickets * 300
 
+    # 試合概要カード
     st.markdown(f"""
-    <div class="match-card">
+    <div class="modern-card">
         <div style="display:flex; justify-content:space-between; font-size:12px; color:#94A3B8; margin-bottom:8px;">
-            <span>第{round_num}節 / 38節</span>
+            <span>Premier League 2026-27 • 第{round_num}節</span>
             <span style="color:{'#34D399' if cur.get('is_finished', False) else '#F59E0B'}; font-weight:bold;">
-                {'FT (試合終了)' if cur.get('is_finished', False) else 'キックオフ前'}
+                {'■ 試合終了 (FT)' if cur.get('is_finished', False) else '□ キックオフ前'}
             </span>
         </div>
-        <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
-            <div style="text-align:center; width:120px; font-weight:bold; font-size:15px;">{h_team}</div>
+        <div style="display:flex; justify-content:space-around; align-items:center; margin:16px 0;">
+            <div style="text-align:center; width:130px; font-weight:800; font-size:16px;">{h_team}</div>
             <div style="text-align:center;">
-                <div style="font-size:36px; font-weight:900; letter-spacing:3px;">
+                <div style="font-size:38px; font-weight:900; letter-spacing:3px; color:#F8FAFC;">
                     {f"{cur.get('h_score', 0)} - {cur.get('a_score', 0)}" if has_result else "VS"}
                 </div>
-                <div style="font-size:11px; color:#94A3B8;">{'HOME' if is_home else 'AWAY'}</div>
+                <div style="font-size:11px; color:#64748B; margin-top:2px;">{'HOME' if is_home else 'AWAY'}</div>
             </div>
-            <div style="text-align:center; width:120px; font-weight:bold; font-size:15px;">{a_team}</div>
+            <div style="text-align:center; width:130px; font-weight:800; font-size:16px;">{a_team}</div>
         </div>
-        <div class="badge-win">
+        <div class="status-badge">
             <span>🎯 得失点差: {'+' if gd > 0 else ''}{gd}点差</span>
             <span>🛒 購入口数: {tickets}口 ({cost:,}円)</span>
         </div>
@@ -690,23 +726,29 @@ with tab1:
     if tickets > 0:
         t1, logs = generate_ticket_1(cur)
 
-        st.markdown("**1口目【マッチスタッツ連動型】**")
+        # 抽出結果カード
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+        st.markdown("<div style='font-weight:800; margin-bottom:8px; color:#FCA5A5;'>1口目【マッチスタッツ連動型】</div>", unsafe_allow_html=True)
         b1 = "".join([f'<div class="loto-ball">{n:02d}</div>' for n in t1])
         st.markdown(f'<div class="ball-container">{b1}</div>', unsafe_allow_html=True)
         st.caption(" ➔ " + " / ".join(logs))
+        st.markdown('</div>', unsafe_allow_html=True)
 
         if tickets >= 2:
-            st.markdown("**2口目【AI統計分析型（動的生成）】**")
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+            st.markdown("<div style='font-weight:800; margin-bottom:8px; color:#FBBF24;'>2口目【AI統計分析型（動的生成）】</div>", unsafe_allow_html=True)
             b2 = "".join([f'<div class="loto-ball loto-ball-gold">{n:02d}</div>' for n in t2_nums])
             st.markdown(f'<div class="ball-container">{b2}</div>', unsafe_allow_html=True)
             st.caption(f" ➔ 統計分析: 奇数{t2_odd}:偶数{t2_even} / 合計値{t2_total}")
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if tickets >= 3:
-            st.markdown("**3口目【クイックピック（QP）】**")
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+            st.markdown("<div style='font-weight:800; margin-bottom:8px;'>3口目【クイックピック（QP）】</div>", unsafe_allow_html=True)
             b3 = "".join([f'<div class="loto-ball">{n:02d}</div>' for n in t3_nums])
             st.markdown(f'<div class="ball-container">{b3}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        st.divider()
         copy_text = f"""【ロト7 購入シート】第{round_num}節 vs {opp_name} ({ha})
 購入口数: {tickets}口 ({cost:,}円)
 1口目: {' '.join([f'{n:02d}' for n in t1])}"""
@@ -715,19 +757,19 @@ with tab1:
         if tickets >= 3:
             copy_text += f"\n3口目: {' '.join([f'{n:02d}' for n in t3_nums])} (QP)"
 
-        st.markdown("**📋 購入用テキスト（右上のアイコンで1タップコピー）**")
+        st.markdown("**📋 購入用テキスト**")
         st.code(copy_text, language="text")
 
         col_b1, col_b2 = st.columns(2)
         with col_b1:
-            if st.button("💾 この節の試合データ・番号を保存（確定）", use_container_width=True):
+            if st.button("💾 試合データを保存（確定）", use_container_width=True):
                 cur["is_finished"] = True
                 save_match_data_to_file(round_num, cur)
-                st.success(f"第{round_num}節のデータを保存しました！")
+                st.success("保存しました！")
                 st.rerun()
 
         with col_b2:
-            if st.button("📊 収支管理に保存", use_container_width=True):
+            if st.button("📊 収支管理に登録", use_container_width=True):
                 history = load_history()
                 new_record = {
                     "round": round_num,
@@ -742,12 +784,12 @@ with tab1:
                 }
                 history.insert(0, new_record)
                 save_history(history)
-                st.success(f"第{round_num}節（vs {opp_name}）の購入データを収支管理に保存しました！")
+                st.success("収支管理に登録しました！")
     else:
         if has_result:
-            st.info("引き分けまたは敗戦のため、ロト7の購入はありません（0口）。")
+            st.info("引き分けまたは敗戦のため、購入対象外（0口）です。")
         else:
-            st.info("キックオフ前です。FotMobのURLから自動取得するか、上の入力フォームにスコアを入れてください。")
+            st.info("キックオフ前です。URL自動取得または上の手動詳細からスコアを入力してください。")
 
 # ==========================================
 # TAB 2: シーズン収支管理
@@ -760,15 +802,15 @@ with tab2:
     roi = (total_won / total_spent * 100) if total_spent > 0 else 0
 
     st.markdown(f"""
-    <div class="match-card">
+    <div class="modern-card">
         <div style="font-size:12px; color:#94A3B8;">2026-27 SEASON OVERVIEW (収支概要)</div>
-        <div style="font-size:28px; font-weight:900; color:{'#34D399' if net_balance >= 0 else '#F87171'}; margin:6px 0;">
+        <div style="font-size:30px; font-weight:900; color:{'#34D399' if net_balance >= 0 else '#F87171'}; margin:8px 0;">
             {'+' if net_balance > 0 else ''}{net_balance:,} 円
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">
-            <span>総投資: -{total_spent:,}円</span>
-            <span>総回収: +{total_won:,}円</span>
-            <span>回収率: {roi:.1f}%</span>
+        <div style="display:flex; justify-content:space-between; font-size:13px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px; color:#94A3B8;">
+            <span>総投資: <strong style="color:#F8FAFC;">-{total_spent:,}円</strong></span>
+            <span>総回収: <strong style="color:#F8FAFC;">+{total_won:,}円</strong></span>
+            <span>回収率: <strong style="color:#F8FAFC;">{roi:.1f}%</strong></span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -796,7 +838,7 @@ with tab2:
                         save_history(history)
                         st.rerun()
     else:
-        st.caption("N/A")
+        st.caption("購入履歴データはありません。")
 
     if st.button("🗑️ 履歴データをリセット"):
         save_history([])
