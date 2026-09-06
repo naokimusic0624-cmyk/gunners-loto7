@@ -22,6 +22,9 @@ st.markdown("""
 .summary-title{font-size:17px;font-weight:900;margin-bottom:12px}.balance{border:1px solid #f0d9dc;border-radius:10px;overflow:hidden}.balance-h{background:#fff0f1;color:#c4141c;padding:10px;font-weight:800;font-size:13px}.balance-v{text-align:center;color:#c4141c;font-size:31px;font-weight:950;padding:10px}.metric-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}.metric{padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.metric:nth-child(2n){border-right:0}.metric-k{font-size:11px;color:var(--muted)}.metric-v{font-size:17px;font-weight:900;margin-top:2px}.hist{padding:10px 0;border-bottom:1px solid #edf1f5;font-size:12px;display:flex;justify-content:space-between}.pos{color:#16864b;font-weight:900}
 .help{background:#fff9e9;border:1px solid #f0e3b8;border-radius:14px;padding:15px}.step{display:flex;gap:9px;margin:10px 0;font-size:12px}.n{min-width:25px;height:25px;border-radius:50%;background:#d71920;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900}
 @media(max-width:900px){.hero-motto{display:none}.hero-title{font-size:23px}.score-row{grid-template-columns:1fr 80px 1fr}.team{font-size:14px}.score{font-size:29px}}
+
+.results-head{display:flex;justify-content:space-between;align-items:flex-end;margin:4px 0 16px}.results-title{font-size:25px;font-weight:950}.results-sub{font-size:12px;color:var(--muted);margin-top:4px}.result-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 0 rgba(15,23,42,.02)}.result-top{display:flex;justify-content:space-between;gap:12px;align-items:center}.result-round{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:900;color:#5f6c80}.result-badge{background:#eaf8ef;color:#16864b;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:900}.result-score{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;margin:13px 0 12px;padding-bottom:12px;border-bottom:1px solid #edf1f5}.result-team{font-size:15px;font-weight:900}.result-team.r{text-align:right}.result-score-num{text-align:center;font-size:27px;font-weight:950}.result-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.result-chip{background:#f7f9fb;border:1px solid #e5eaf0;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:800;color:#607086}.pick-block{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;padding:8px 0}.pick-label{font-size:11px;font-weight:900}.archive-empty{background:#fff;border:1px dashed #ccd5df;border-radius:14px;padding:42px;text-align:center;color:var(--muted)}
+@media(max-width:900px){.result-score{grid-template-columns:1fr 70px 1fr}.result-team{font-size:13px}.result-score-num{font-size:23px}.pick-block{grid-template-columns:1fr}.results-head{align-items:flex-start;flex-direction:column}}
 </style>
 """, unsafe_allow_html=True)
 # ==========================================
@@ -427,7 +430,7 @@ roi = (total_won/total_spent*100) if total_spent else 0
 
 st.markdown('''<div class="hero"><div class="hero-brand"><img class="hero-logo" src="https://ssl.gstatic.com/onebox/media/sports/logos/optimized/4us2nCgl6kgZc0t3hpW75Q_500x500.png"><div><div class="hero-title">Gunners Loto 7 (2026-27)</div><div class="hero-sub">アーセナルの試合結果で楽しむ ロト7風予想アプリ</div></div></div><div class="hero-motto">ONCE A GUNNER<br>ALWAYS A GUNNER</div></div>''', unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["⌂ ホーム / 試合データ", "▥ 購入履歴・収支"])
+tab1, tab2, tab3 = st.tabs(["⌂ ホーム / 試合データ", "▥ 購入履歴・収支", "⚽ 試合結果・選出番号"])
 
 with tab1:
     labels=[]
@@ -497,10 +500,17 @@ with tab1:
             if tickets>=3: st.markdown(f'<div class="ticket"><div class="ticket-title">3口目【クイックピック（QP）】</div><div class="balls">{"".join(f"<span class=\"ball\">{n:02d}</span>" for n in t3_nums)}</div></div>', unsafe_allow_html=True)
             c1,c2=st.columns(2)
             with c1:
-                if st.button("💾 試合データを保存",use_container_width=True,key=f"save_{round_num}"): cur["is_finished"]=True; save_match_data_to_file(round_num,cur); st.rerun()
+                if st.button("💾 試合データを保存",use_container_width=True,key=f"save_{round_num}"):
+                    cur["is_finished"] = True
+                    cur["saved_ticket_1"] = t1
+                    cur["saved_ticket_2"] = t2_nums if tickets >= 2 else []
+                    cur["saved_ticket_3"] = t3_nums if tickets >= 3 else []
+                    cur["saved_tickets_count"] = tickets
+                    save_match_data_to_file(round_num,cur)
+                    st.rerun()
             with c2:
                 if st.button("▥ 収支管理に登録",use_container_width=True,key=f"hist_{round_num}"):
-                    h=load_history(); h.insert(0,{"round":round_num,"opponent":f"{opp_name} ({ha})","score":f"{ars_score}-{opp_score}","tickets":tickets,"cost":cost,"ticket_1":t1,"ticket_2":t2_nums if tickets>=2 else [],"hit_amount":0,"status":"未抽せん"}); save_history(h); st.rerun()
+                    h=load_history(); h.insert(0,{"round":round_num,"opponent":f"{opp_name} ({ha})","score":f"{ars_score}-{opp_score}","tickets":tickets,"cost":cost,"ticket_1":t1,"ticket_2":t2_nums if tickets>=2 else [],"ticket_3":t3_nums if tickets>=3 else [],"hit_amount":0,"status":"未抽せん"}); save_history(h); st.rerun()
         else: st.info("勝利時のみ購入番号を表示します。" if has_result else "キックオフ前です。FotMob自動取得または手動入力で結果を反映してください。")
 
     with right:
@@ -526,3 +536,91 @@ with tab2:
                     if won!=rec.get("hit_amount",0): history[idx]["hit_amount"]=int(won); history[idx]["status"]=f"{won:,}円 当せん" if won>0 else "ハズレ"; save_history(history); st.rerun()
     else: st.caption("購入履歴データはありません。")
     if st.button("🗑️ 履歴データをリセット",key="reset_history"): save_history([]); st.rerun()
+
+
+with tab3:
+    saved_matches_archive = load_saved_matches()
+    history_archive = load_history()
+    history_by_round = {}
+    for rec in history_archive:
+        try:
+            rr = int(rec.get("round", 0))
+        except Exception:
+            rr = 0
+        if rr and rr not in history_by_round:
+            history_by_round[rr] = rec
+
+    completed_rows = []
+    for item in SCHEDULE_2026_27:
+        r = item["round"]
+        sm = saved_matches_archive.get(str(r))
+        if not isinstance(sm, dict):
+            continue
+        has_saved_result = sm.get("is_finished", False) or sm.get("h_score", 0) > 0 or sm.get("a_score", 0) > 0
+        if not has_saved_result:
+            continue
+        completed_rows.append((item, sm))
+
+    st.markdown(f'''<div class="results-head"><div><div class="results-title">⚽ 試合結果・選出番号</div><div class="results-sub">保存済みの試合結果と、その試合から選ばれたロト7番号を一覧表示します。</div></div><div class="result-chip">保存済み {len(completed_rows)} 試合</div></div>''', unsafe_allow_html=True)
+
+    if completed_rows:
+        for item, sm in reversed(completed_rows):
+            r = item["round"]
+            opp = item["opp"]
+            ha = item["ha"]
+            is_home = ha == "H"
+            h_team = "アーセナルFC" if is_home else opp
+            a_team = opp if is_home else "アーセナルFC"
+            h_score = int(sm.get("h_score", 0))
+            a_score = int(sm.get("a_score", 0))
+            ars_score = h_score if is_home else a_score
+            opp_score = a_score if is_home else h_score
+            gd = ars_score - opp_score
+            ticket_count = max(0, min(5, gd)) if gd > 0 else 0
+
+            hist_rec = history_by_round.get(r, {})
+            t1_saved = sm.get("saved_ticket_1") or hist_rec.get("ticket_1") or (generate_ticket_1(sm)[0] if ticket_count > 0 else [])
+            t2_saved = sm.get("saved_ticket_2") or hist_rec.get("ticket_2") or []
+            t3_saved = sm.get("saved_ticket_3") or hist_rec.get("ticket_3") or []
+
+            def balls_html(nums, gold=False):
+                cls = "ball gold" if gold else "ball"
+                return "".join(f'<span class="{cls}">{int(n):02d}</span>' for n in nums)
+
+            status_text = "WIN" if gd > 0 else ("DRAW" if gd == 0 else "LOSS")
+            status_bg = "#eaf8ef" if gd > 0 else ("#f4f6f8" if gd == 0 else "#fff0f1")
+            status_color = "#16864b" if gd > 0 else ("#68768a" if gd == 0 else "#c4141c")
+
+            picks_html = ""
+            if ticket_count > 0 and t1_saved:
+                picks_html += f'<div class="pick-block"><div class="pick-label red">1口目｜マッチスタッツ連動型</div><div class="balls">{balls_html(t1_saved)}</div></div>'
+            if ticket_count >= 2 and t2_saved:
+                picks_html += f'<div class="pick-block"><div class="pick-label goldt">2口目｜AI統計分析型</div><div class="balls">{balls_html(t2_saved, True)}</div></div>'
+            if ticket_count >= 3 and t3_saved:
+                picks_html += f'<div class="pick-block"><div class="pick-label">3口目｜クイックピック</div><div class="balls">{balls_html(t3_saved)}</div></div>'
+            if ticket_count == 0:
+                picks_html = '<div class="tiny" style="padding-top:6px">引き分けまたは敗戦のため購入対象外です。</div>'
+            elif ticket_count >= 2 and not t2_saved:
+                picks_html += '<div class="tiny" style="padding-top:6px">※この試合は旧データのため、2口目以降の番号が保存されていません。</div>'
+
+            st.markdown(f'''
+            <div class="result-card">
+              <div class="result-top">
+                <div class="result-round">PREMIER LEAGUE 2026-27 ・ 第{r}節 ・ {"HOME" if is_home else "AWAY"}</div>
+                <span class="result-badge" style="background:{status_bg};color:{status_color}">{status_text}</span>
+              </div>
+              <div class="result-score">
+                <div class="result-team">{h_team}</div>
+                <div class="result-score-num">{h_score} - {a_score}</div>
+                <div class="result-team r">{a_team}</div>
+              </div>
+              <div class="result-meta">
+                <span class="result-chip">得失点差 {"+" if gd > 0 else ""}{gd}</span>
+                <span class="result-chip">購入 {ticket_count}口</span>
+                <span class="result-chip">購入額 {ticket_count*300:,}円</span>
+              </div>
+              {picks_html}
+            </div>
+            ''', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="archive-empty">まだ保存済みの試合結果はありません。<br><span class="tiny">ホーム画面で試合データを保存すると、ここに一覧表示されます。</span></div>', unsafe_allow_html=True)
